@@ -1,0 +1,133 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Threading.Tasks;
+using Grpc.Core;
+using K2B;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+namespace K2svc.Backend
+{
+    public class ServerManagementService : ServerManagement.ServerManagementBase
+    {
+        private readonly ILogger<ServerManagementService> logger;
+        private static List<Server> servers = new List<Server>(); // server 수가 많지 않고, register/unregister 가 빈번하지 않으므로 별도의 index 는 필요 없을 것
+        private readonly IHostApplicationLifetime life;
+        private readonly Frontend.PushService.Singleton push;
+
+        public ServerManagementService(ILogger<ServerManagementService> _logger, IHostApplicationLifetime _life, Frontend.PushService.Singleton _push)
+        {
+            logger = _logger;
+            life = _life;
+            push = _push;
+        }
+
+        #region rpc - backend listen
+        public override Task<RegisterResponse> Register(RegisterRequest request, ServerCallContext context)
+        {
+            // TODO: server configuration here.
+            var server = new Server
+            {
+                Id = "dev",
+                FrontendListeningPort = 5000,
+                PushBackendAddress = "http://localhost:5000",
+
+                LastPingTime = DateTime.Now
+            };
+
+            lock (servers) servers.Add(server);
+            return Task.FromResult(new RegisterResponse
+            {
+                Ok = true,
+                ServerId = server.Id,
+                FrontendListeningPort = server.FrontendListeningPort,
+                PushBackendAddress = server.PushBackendAddress,
+            });
+        }
+
+        public override Task<Null> Unregister(UnregisterRequest request, ServerCallContext context)
+        {
+            var server = FindServer(request.ServerId);
+            lock (servers) servers.Remove(server);
+
+            return Task.FromResult(new Null());
+        }
+
+        public override Task<Null> Ping(PingRequest request, ServerCallContext context)
+        {
+            lock (servers)
+            {
+                var i = servers.FindIndex((s) => s.Id == request.ServerId);
+                if (i < 0)
+                {
+                    logger.LogInformation($"{request.ServerId} server requested ping, but NOT in the list");
+                    return Task.FromResult(new Null());
+                }
+                // ping 순서대로 정렬 유지해 list 뒤쪽에 가장 오래되어 처리가 필요한 server 가 존재할 수 있도록
+                var server = servers[i];
+                servers.RemoveAt(i);
+                server.LastPingTime = DateTime.Now;
+                servers.Insert(0, server);
+            }
+
+            return Task.FromResult(new Null());
+        }
+
+        public override async Task<Null> Broadcast(PushRequest request, ServerCallContext context)
+        {
+            List<Server> all;
+            lock (servers) all = new List<Server>(servers);
+            foreach (var s in all)
+            {
+                if (string.IsNullOrEmpty(s.PushBackendAddress)) continue;
+                using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(s.PushBackendAddress);
+                var client = new ServerManagement.ServerManagementClient(channel);
+                await client.BroadcastFAsync(request);
+            }
+            return new Null();
+        }
+        #endregion
+
+        #region rpc - frontend listen
+        public override Task<Null> StopF(Null request, ServerCallContext context)
+        {
+            // TODO: 리소스 정리
+
+            life.StopApplication();
+            return Task.FromResult(new Null());
+        }
+
+        public override async Task<Null> BroadcastF(PushRequest request, ServerCallContext context)
+        {
+            var message = request.ToResponse();
+            var count = await push.SendMessageToAll(message);
+            logger.LogInformation($"{count} broadcasted message : ", message.Message);
+            return new Null();
+        }
+        #endregion
+
+        private static Server FindServer(string id)
+        {
+            lock (servers)
+            {
+                return servers.Find((s) => (id == s.Id));
+            }
+        }
+
+        private struct Server : IEquatable<Server>
+        { // thread safety 를 위해 struct
+            public string Id;
+            public uint FrontendListeningPort;
+            public string PushBackendAddress;
+
+            public DateTime LastPingTime;
+
+            public bool Equals([AllowNull] Server other)
+            { // List.Remove 에 사용하기 위해 IEquatable
+                return this.Id == other.Id;
+            }
+        }
+    }
+}

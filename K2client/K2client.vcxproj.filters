@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="K2client.cpp" />
+    <ClCompile Include="proto\sample.grpc.pb.cc">
+      <Filter>proto</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\sample.pb.cc">
+      <Filter>proto</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="proto">
+      <UniqueIdentifier>{66ce8dc4-f90d-4858-9bae-aec08f7e9821}</UniqueIdentifier>
+      <SourceControlFiles>False</SourceControlFiles>
+      <Extensions>pb.cc;pb.h</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="proto\sample.grpc.pb.h">
+      <Filter>proto</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\sample.pb.h">
+      <Filter>proto</Filter>
+    </ClInclude>
+    <ClInclude Include="K2helper.hpp" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,100 @@
+// client - server 의 service, rpc, message 정의.
+// 서버 전용(server-server) 정의는 service project 내에 존재
+
+syntax = "proto3";
+
+package K2;
+
+message Null {} // same as google.protobuf.Empty
+
+// Services 
+service Init { // authorization 전에 사용할 수 있는 서비스
+	rpc State (Null) returns (StateResponse);
+	rpc Login (LoginRequest) returns (LoginResponse);
+}
+service Push {
+	rpc PushBegin (Null) returns (stream PushResponse);
+}
+service PushSample {
+	// push responses
+	rpc Broadacast (BroadacastRequest) returns (Null); // target all ; 운영자 공지 등에 사용될 것
+	rpc Message (MessageRequest) returns (Null); // target other ; 지정한 대상을 찾아 push
+	rpc Hello (Null) returns (Null); // target self ; 요청하는 서버와 push 서버가 다르기 때문에 jwt 의 pushBackendAddress 를 이용해 push
+	rpc Kick (KickRequest) returns (Null);
+}
+
+// Messages
+// Init ///////////////////////////////////////////////////////////////////////
+message StateResponse {
+	string version = 1; // service version
+	string gateway = 2;
+}
+
+message LoginRequest {
+	string id = 1;
+	string pw = 2;
+}
+
+message LoginResponse {
+	enum ResultType { // OK 가 아니더라도 jwt 가 공백이 아니면, 인증 된 사용자
+		OK = 0;
+		DUPLICATED = 1;
+		MISMATCHED = 2;
+	}
+	ResultType result = 1;
+	string jwt = 2; // security token ; 항상 header 에 포함되어야 하는 정보. 공백인 경우
+	// more info here
+}
+/////////////////////////////////////////////////////////////////////// Init //
+
+// Push ///////////////////////////////////////////////////////////////////////
+message PushResponse {
+	enum PushType { // 자세한 내용은 문서 하단 정보 참고
+		ERROR = 0;
+	    MESSAGE = 1;
+		CONFIG = 2;    // 클라이언트의 설정/상태 변경 요구
+		COMMAND = 3;   // 클라이언트의 특정 동작 실행 요구
+	}
+	PushType type = 1;
+	string message = 2;
+	string extra = 3;
+}
+/////////////////////////////////////////////////////////////////////// Push //
+
+
+// PushSample /////////////////////////////////////////////////////////////////
+message BroadacastRequest {
+	string message = 1;
+}
+
+message MessageRequest {
+	string target = 1;
+	string message = 2;
+}
+
+message KickRequest {
+	string target = 1;
+}
+///////////////////////////////////////////////////////////////// PushSample //
+
+//
+// chat, message 등의 경우 별도의 service 를 만들지 않고 해당 기능이 필요한
+//   서비스(친구, 길드, 운영 등)에서 각각 rpc 및 message 를 배치해 서비스가
+//   추가되는 경우에도 독립적으로(이전의 message 를 변경하지 않고) 동작할 수
+//   있도록 하는 것이 좋겠다.
+//
+
+// PushType 별 지정된 동작
+// ERROR
+//   message : 오류 메시지(localize 고려 필요)
+//   extra   : 오류에 관한 세부 정보
+// MESSAGE
+//   message : 메시지 내용
+//   extra   : 출처 정보
+// CONFIG
+//   message : config 키 ; "jwt", "servetime" 등
+//   extra   : config 값
+// COMMAND
+//   message : command 이름
+//   extra   : command 의 parameter
+
