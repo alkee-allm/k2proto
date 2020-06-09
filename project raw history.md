@@ -595,10 +595,27 @@ configuration 을 만들어내고 이를 StartUp 으로 전달하는 방식은 �
 또한, 현재는 frontend 나 backend 가 같은 listening 채널(localhost:5000)을 사용하고 있기 때문에
 ssl 을 사용하는 경우 두가지 함께 적용되어야 하고 별도로 정책을 설정할 수 없는 문제.
 
-
 frontend listener(다른 서버들로부터 호출되는 frontend 의 rpc)의 경우 diagram 에서는 PushService 에서 보내는 것으로
 되어있지만 실제 이 listener 함수들의 존재는 backend 에 있다. 이는 diagram 이 instance 와 실제 동작하는 class 를 분리해 보여주기
 어렵기 때문이기도 하고, 한 클래스에 .proto 의 frontend 와 .backend 의 service 를 중복해서 정의할 수 없기도 하기 떄문.
+
+
+서버에서 발급된 인증서를 이용해 지정된 서버와 ssl 연결이 가능하다.
+
+```cpp
+	string CHANNEL_URL("localhost:5001");
+	grpc::SslCredentialsOptions option;
+	option.pem_root_certs = read("localhost.pem");
+	auto creds = grpc::SslCredentials(option);
+	auto initChannel = grpc::CreateChannel(CHANNEL_URL, creds);
+```
+
+local 개발 서버의 인증서 추출 방법.
+  - `dotnet dev-cert https --ep output.pfx` 후 [openssl](https://www.openssl.org/) tool 이용해 pfx -> pem(cert) 으로 변환
+  - 또는, `certmgr` 실행(cmd or ps)해 개인용 인증서의 localhost 를 찾아 작업-내보내기를 이용해 `.cer` 파일로 저장 후 확장자 `.pem`으로 변환
+  
+어느 경우던, 자동화가 까다로워 소스공유(빌드해 실행)에 문제가 있을 것. 따라서, 소스에서는 https 가 아닌 http 를 사용하도록.
+
 
 
 

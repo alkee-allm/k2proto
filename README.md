@@ -40,18 +40,5 @@ skip 가능.
 
 ### Test
 
-  client 실행창에서 최초에 id 와 password 를 묻게 되는데, password 의 경우 k 로 시작하면 항상 성공하고 그렇지 않으면 실패하도록 되어있음.
-  
+  - client 실행창에서 최초에 id 와 password 를 묻게 되는데, password 의 경우 k 로 시작하면 항상 성공하고 그렇지 않으면 실패하도록 되어있음.
 
-### Todo
-
- * Improvement client
-   - 비동기 방식의 c++ gRPC
-
- * Backend services
-   - independent channel for frontend & backend
-   - strong typed configuration from Main to Startup --> ServerManagement service flow
-
- * Design, Documents
-   - Diagram 에서 Push Service 에 send 하는 것처럼 되어있지만 실제로는 Push service instance 를 가지고있는 서버의 해당 backend 에서 처리(singleton 호출)되는 괴리 문제
-   

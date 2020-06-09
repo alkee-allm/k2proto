@@ -32,9 +32,21 @@ namespace K2svc.Frontend
             if (string.IsNullOrEmpty(userId)) throw new ApplicationException($"invalid session state of the user : {context.RequestHeaders}");
 
             logger.LogInformation($"begining push service for : {userId}");
+            using (var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionServiceAddress))
+            {
+                var client = new K2B.UserSession.UserSessionClient(channel);
+                var result = await client.AddUserAsync(new K2B.AddUserRequest
+                {
+                    Force = true, // 항상 성공
+                    ServerId = config.ServerId,
+                    UserId = userId,
+                    PushBackendAddress = config.PushBackendAddress
+                });
+                logger.LogInformation($"adding user({userId}) to session backend : {result}");
+            }
             var user = users.Add(userId, responseStream);
 
-            var newJwt = GenerateJwtToken(userId);
+            var newJwt = GenerateJwtToken(userId, config.PushBackendAddress);
             await responseStream.WriteAsync(new PushResponse
             {
                 Type = PushResponse.Types.PushType.Config,
@@ -48,17 +60,25 @@ namespace K2svc.Frontend
             }
 
             logger.LogInformation($"ending push service for : {userId}");
+
+            using (var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionServiceAddress))
+            {
+                var client = new K2B.UserSession.UserSessionClient(channel);
+                var result = await client.RemoveUserAsync(new K2B.RemoveUserRequest { ServerId = config.ServerId, UserId = userId });
+                logger.LogInformation($"removing user({userId}) to session backend : {result}");
+            }
             users.Remove(userId);
+
         }
         #endregion
 
-        private string GenerateJwtToken(string id)
+        private string GenerateJwtToken(string id, string pushBackendAddress)
         {
             if (string.IsNullOrEmpty(id)) throw new ArgumentException("invalid id", nameof(id));
 
             logger.LogInformation($"creating jwt for {id}");
 
-            var claims = new[] { new Claim(ClaimTypes.Name, id), new Claim(ClaimTypes.System, config.UserSessionServiceAddress) };
+            var claims = new[] { new Claim(ClaimTypes.Name, id), new Claim(ClaimTypes.System, pushBackendAddress) };
             var credentials = new SigningCredentials(InitService.SecurityKey, SecurityAlgorithms.HmacSha256);
             var token = new JwtSecurityToken("k2server", "k2client", claims, signingCredentials: credentials);
 

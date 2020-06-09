@@ -24,13 +24,13 @@ namespace K2svc
             // https://docs.microsoft.com/en-us/aspnet/core/grpc/troubleshoot?view=aspnetcore-3.0#call-insecure-grpc-services-with-net-core-client
             System.AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
-            CreateHostBuilder(args, config).Build().Run();
+            CreateHostBuilder(args).Build().Run();
         }
 
 
         // Additional configuration is required to successfully run gRPC on macOS.
         // For instructions on how to configure Kestrel and gRPC clients on macOS, visit https://go.microsoft.com/fwlink/?linkid=2099682
-        public static IHostBuilder CreateHostBuilder(string[] args, ServiceConfiguration config) =>
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
 
             // TODO: config 를 Startup 에 넘기는 방법.
 

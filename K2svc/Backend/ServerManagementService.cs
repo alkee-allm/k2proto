@@ -31,7 +31,7 @@ namespace K2svc.Backend
             var server = new Server
             {
                 Id = "dev",
-                FrontendListeningPort = 5000,
+                FrontendListeningPort = 5001,
                 PushBackendAddress = "http://localhost:5000",
 
                 LastPingTime = DateTime.Now

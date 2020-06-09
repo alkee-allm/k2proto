@@ -31,10 +31,17 @@ int main() {
 	// 연결 준비
 	unique_ptr<thread> pushThread;
 	K2::Null empty;
+
+	//grpc::SslCredentialsOptions option;
+	//option.pem_root_certs = read("localhost.pem"); // 서버의 인증서 필요(certmgr 또는 dotnet dev-cert 명령 이용해 추출)
+	//auto creds = grpc::SslCredentials(option);
+	auto creds = grpc::InsecureChannelCredentials();
+
 	string CHANNEL_URL("localhost:5000");
-	auto initChannel = grpc::CreateChannel(CHANNEL_URL, grpc::InsecureChannelCredentials());
+	auto initChannel = grpc::CreateChannel(CHANNEL_URL, creds);
+
 	// grpc::ClientContext 는 재사용해 사용될 수 없음. https://github.com/grpc/grpc/issues/486
-	AuthCallback auth; // jwt header 를 자동으로 붙여주는 개체
+	AuthCallback auth(creds); // jwt header 를 자동으로 붙여주는 개체
 
 	// INIT service
 	K2::Init::Stub initStub(initChannel);
@@ -73,7 +80,7 @@ int main() {
 
 
 	// Sample service test
-	auto channel = grpc::CreateChannel(CHANNEL_URL, grpc::InsecureChannelCredentials());
+	auto channel = grpc::CreateChannel(CHANNEL_URL, creds);
 	K2::PushSample::Stub sampleStub(channel);
 
 	cout << "type 'quit' to terminate\n";
@@ -123,14 +130,13 @@ int main() {
 
 void pushResponseThread(const string& channelUrl, AuthCallback& auth) {
 
-	auto channel = grpc::CreateChannel(channelUrl, grpc::InsecureChannelCredentials());
+	auto channel = grpc::CreateChannel(channelUrl, auth.getCreds());
 	K2::Push::Stub pushStub(channel);
 	grpc::ClientContext context;
 	auto stream = pushStub.PushBegin(&context, K2::Null());
 	K2::PushResponse buffer;
 
 	cout << "BEGIN OF PUSH service" << endl;
-
 	while (stream->Read(&buffer)) { // Read 함수는 blocking 함수
 		cout << "[PUSH received:" << buffer.PushType_Name(buffer.type()) << "] "
 			<< buffer.message();
@@ -147,4 +153,6 @@ void pushResponseThread(const string& channelUrl, AuthCallback& auth) {
 
 	cout << "END OF PUSH service" << endl;
 	stream->Finish();
+
+	exit(1); // closed by server
 }

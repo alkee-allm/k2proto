@@ -22,6 +22,14 @@ std::string dumpStatus(const grpc::Status& status)
 	return msg;
 }
 
+std::string read(const std::string& filename) {
+	std::ifstream fh(filename);
+	std::stringstream buffer;
+	buffer << fh.rdbuf();
+	fh.close();
+	return buffer.str();
+}
+
 void throwOnError(const grpc::Status& status)
 {
 	if (!status.ok()) {
@@ -65,10 +73,19 @@ Command parse(string line)
 class AuthCallback : public grpc::ClientContext::GlobalCallbacks
 {
 public:
+	AuthCallback(shared_ptr<grpc::ChannelCredentials> creds)
+		: creds(creds)
+	{}
+
 	AuthCallback* setJwt(const string& jwt) {
+
+		cout << "setting jtw : " << jwt << endl;
 		meta = "Bearer " + jwt;
 		return this;
 	}
+
+	shared_ptr<grpc::ChannelCredentials> getCreds() const { return creds; }
+
 	virtual void DefaultConstructor(grpc::ClientContext* context) {
 		if (meta.empty() == false)
 		{
@@ -76,8 +93,10 @@ public:
 		}
 	}
 	virtual void Destructor(grpc::ClientContext* context) {}
+
 private:
 	string meta;
+	shared_ptr<grpc::ChannelCredentials> creds;
 };
 
 

@@ -7,5 +7,6 @@
         // ServerManagementService 로부터 얻어와 설정될 값들
         public string ServerId { get; set; } = "dev";
         public string UserSessionServiceAddress { get; set; } = "http://localhost:5000";
+        public string PushBackendAddress { get; set; } = "http://localhost:5000";
     }
 }

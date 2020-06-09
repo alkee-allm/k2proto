@@ -21,7 +21,7 @@ namespace K2svc
 
         // This method gets called by the runtime. Use this method to add services to the container.
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
-        public void ConfigureServices(IServiceCollection services, ServiceConfiguration sss)
+        public void ConfigureServices(IServiceCollection services)
         {
             // TODO: main 에서부터 온 config 를 사용해야하는데...
             var settings = new ServiceConfiguration();

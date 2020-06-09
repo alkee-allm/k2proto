@@ -3,6 +3,7 @@ using K2B;
 using K2svc.Frontend;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace K2svc.Backend
@@ -22,22 +23,29 @@ namespace K2svc.Backend
         }
 
         #region rpc - backend listen
-        public override Task<AddUserResponse> AddUser(AddUserRequest request, ServerCallContext context)
+        public override async Task<AddUserResponse> AddUser(AddUserRequest request, ServerCallContext context)
         {
             bool exist = false;
+            if (request.Force)
+            { // 무조건 kick 
+                await KickUser(new KickUserRequest { UserId = request.UserId }, context);
+            }
+
             lock (sessions)
             {
                 exist = sessions.ContainsKey(request.UserId);
-                if (exist && request.Force == false)
+                if (exist)
                 {
-                    return Task.FromResult(new AddUserResponse { Result = AddUserResponse.Types.ResultType.AlreadyConnected });
+                    if (request.Force)
+                    logger.LogWarning($"{request.UserId} already exist." + (request.Force ? " EVEN AFTER KICKED" : ""));
+                    return new AddUserResponse { Result = AddUserResponse.Types.ResultType.AlreadyConnected };
                 }
                 sessions.Add(request.UserId, request.PushBackendAddress);
             }
-            return Task.FromResult(new AddUserResponse
+            return new AddUserResponse
             {
                 Result = exist ? AddUserResponse.Types.ResultType.ForceAdded : AddUserResponse.Types.ResultType.Ok
-            });
+            };
         }
 
         public override Task<RemoveUserResponse> RemoveUser(RemoveUserRequest request, ServerCallContext context)
