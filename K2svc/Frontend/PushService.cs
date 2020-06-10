@@ -79,7 +79,7 @@ namespace K2svc.Frontend
             logger.LogInformation($"creating jwt for {id}");
 
             var claims = new[] { new Claim(ClaimTypes.Name, id), new Claim(ClaimTypes.System, pushBackendAddress) };
-            var credentials = new SigningCredentials(InitService.SecurityKey, SecurityAlgorithms.HmacSha256);
+            var credentials = new SigningCredentials(Security.SecurityKey, SecurityAlgorithms.HmacSha256);
             var token = new JwtSecurityToken("k2server", "k2client", claims, signingCredentials: credentials);
 
             // 새버전의 문서에는 없는 내용이긴 한데, https://docs.microsoft.com/en-us/previous-versions/visualstudio/dn464181(v=vs.114)?redirectedfrom=MSDN#thread-safety

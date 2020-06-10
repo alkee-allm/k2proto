@@ -54,7 +54,7 @@ namespace K2svc
                             ValidateIssuer = false,
                             ValidateActor = false,
                             ValidateLifetime = false,
-                            IssuerSigningKey = Frontend.InitService.SecurityKey
+                            IssuerSigningKey = Security.SecurityKey
                         };
                 });
 

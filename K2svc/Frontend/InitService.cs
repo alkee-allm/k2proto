@@ -11,11 +11,6 @@ namespace K2svc.Frontend
 {
     public class InitService : Init.InitBase
     {
-        private static string VERSION = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(2); // major.minor
-        // ** 주의 **  ; https://github.com/alkee-allm/k2proto/issues/2#issuecomment-641868442
-        //   모든 실행되는 서버들은 Major+minor 버전이 일치해야한다.
-        public static SymmetricSecurityKey SecurityKey = new SymmetricSecurityKey(System.Text.Encoding.Default.GetBytes("hash salt +" + VERSION));
-
         private readonly ILogger<InitService> logger;
 
         public InitService(ILogger<InitService> _logger)
@@ -61,7 +56,7 @@ namespace K2svc.Frontend
             logger.LogInformation($"creating jwt for {id}");
 
             var claims = new[] { new Claim(ClaimTypes.Name, id) };
-            var credentials = new SigningCredentials(SecurityKey, SecurityAlgorithms.HmacSha256);
+            var credentials = new SigningCredentials(Security.SecurityKey, SecurityAlgorithms.HmacSha256);
             var token = new JwtSecurityToken("k2server", "k2client", claims, signingCredentials: credentials);
 
             // 새버전의 문서에는 없는 내용이긴 한데, https://docs.microsoft.com/en-us/previous-versions/visualstudio/dn464181(v=vs.114)?redirectedfrom=MSDN#thread-safety
