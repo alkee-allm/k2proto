@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+ï»¿using System.Threading.Tasks;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
@@ -12,8 +12,8 @@ namespace K2svc.Frontend
     public class InitService : Init.InitBase
     {
         private static string VERSION = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(2); // major.minor
-        // ** ÁÖÀÇ **  ; https://github.com/alkee-allm/k2proto/issues/2#issuecomment-641868442
-        //   ¸ğµç ½ÇÇàµÇ´Â ¼­¹öµéÀº Major+minor ¹öÀüÀÌ ÀÏÄ¡ÇØ¾ßÇÑ´Ù.
+        // ** ì£¼ì˜ **  ; https://github.com/alkee-allm/k2proto/issues/2#issuecomment-641868442
+        //   ëª¨ë“  ì‹¤í–‰ë˜ëŠ” ì„œë²„ë“¤ì€ Major+minor ë²„ì „ì´ ì¼ì¹˜í•´ì•¼í•œë‹¤.
         public static SymmetricSecurityKey SecurityKey = new SymmetricSecurityKey(System.Text.Encoding.Default.GetBytes("hash salt +" + VERSION));
 
         private readonly ILogger<InitService> logger;
@@ -26,15 +26,15 @@ namespace K2svc.Frontend
         #region rpc
         public override Task<LoginResponse> Login(LoginRequest request, ServerCallContext context)
         {
-            // (º¸¾È) ÇÏ³ªÀÇ ¿¬°á¿¡¼­ ÀÚÁÖ ¿äÃ»¹Ş´Â °æ¿ì °ÅºÎÇÏ°Å³ª, ¿äÃ»ÀÇ È½¼ö¿¡ µû¶ó Á¡Á¡ °á°úÃ³¸®ÀÇ ½Ã°£À» Áö¿¬ÇÒ °Í
+            // (ë³´ì•ˆ) í•˜ë‚˜ì˜ ì—°ê²°ì—ì„œ ìì£¼ ìš”ì²­ë°›ëŠ” ê²½ìš° ê±°ë¶€í•˜ê±°ë‚˜, ìš”ì²­ì˜ íšŸìˆ˜ì— ë”°ë¼ ì ì  ê²°ê³¼ì²˜ë¦¬ì˜ ì‹œê°„ì„ ì§€ì—°í•  ê²ƒ
 
-            // ÀÓ½Ã - ºñ¹Ğ¹øÈ£°¡ k ·Î ½ÃÀÛÇÏ¸é ¹«Á¶°Ç ¼º°ø
+            // ì„ì‹œ - ë¹„ë°€ë²ˆí˜¸ê°€ k ë¡œ ì‹œì‘í•˜ë©´ ë¬´ì¡°ê±´ ì„±ê³µ
             if (request.Pw.Length < 1 || request.Pw[0] != 'k')
             {
                 return Task.FromResult(new LoginResponse { Result = LoginResponse.Types.ResultType.Mismatched });
             }
 
-            // TODO: Áßº¹ ·Î±×ÀÎ °Ë»ç ¹× Ã³¸®(Á¤Ã¥ ±âÈ¹ ÇÊ¿ä)
+            // TODO: ì¤‘ë³µ ë¡œê·¸ì¸ ê²€ì‚¬ ë° ì²˜ë¦¬(ì •ì±… ê¸°íš í•„ìš”)
 
             return Task.FromResult(new LoginResponse
             {
@@ -45,7 +45,7 @@ namespace K2svc.Frontend
 
         public override Task<StateResponse> State(Null request, ServerCallContext context)
         {
-            // runtime È£ÃâÀ» ÇÇÇÏ°í ÃÖ´ëÇÑ static ÇÏ°Ô.
+            // runtime í˜¸ì¶œì„ í”¼í•˜ê³  ìµœëŒ€í•œ static í•˜ê²Œ.
             return Task.FromResult(new StateResponse
             {
                 Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0.0",
@@ -64,8 +64,8 @@ namespace K2svc.Frontend
             var credentials = new SigningCredentials(SecurityKey, SecurityAlgorithms.HmacSha256);
             var token = new JwtSecurityToken("k2server", "k2client", claims, signingCredentials: credentials);
 
-            // »õ¹öÀüÀÇ ¹®¼­¿¡´Â ¾ø´Â ³»¿ëÀÌ±ä ÇÑµ¥, https://docs.microsoft.com/en-us/previous-versions/visualstudio/dn464181(v=vs.114)?redirectedfrom=MSDN#thread-safety
-            // thread safety °¡ °ÆÁ¤µÇ¹Ç·Î wtSecurityTokenHandler ¸¦ Ç×»ó »õ instance »ı¼ºÇØ »ç¿ë
+            // ìƒˆë²„ì „ì˜ ë¬¸ì„œì—ëŠ” ì—†ëŠ” ë‚´ìš©ì´ê¸´ í•œë°, https://docs.microsoft.com/en-us/previous-versions/visualstudio/dn464181(v=vs.114)?redirectedfrom=MSDN#thread-safety
+            // thread safety ê°€ ê±±ì •ë˜ë¯€ë¡œ wtSecurityTokenHandler ë¥¼ í•­ìƒ ìƒˆ instance ìƒì„±í•´ ì‚¬ìš©
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 

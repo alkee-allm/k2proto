@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Hosting;
+ï»¿using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -10,8 +10,8 @@ namespace K2svc
         {
             // TODO: configuration from arguments
             // ServiceManagementService 
-            // ¼­¹ö¸¦ ½ÃÀÛÇÏ±â Àü¿¡ ServerManagementService ÀÇ ÁÖ¼Ò¸¦ È®ÀÎÇÏ°í
-            // ÀÌ ¼­¹öÀÇ ¼³Á¤µéÀ» ·ÎµåÇÑ´Ù.
+            // ì„œë²„ë¥¼ ì‹œìž‘í•˜ê¸° ì „ì— ServerManagementService ì˜ ì£¼ì†Œë¥¼ í™•ì¸í•˜ê³ 
+            // ì´ ì„œë²„ì˜ ì„¤ì •ë“¤ì„ ë¡œë“œí•œë‹¤.
             var config = new ServiceConfiguration // development configuration
             {
                 ServerManagementServiceAddress = "http://localhost:5000", // must be set first
@@ -32,7 +32,7 @@ namespace K2svc
         // For instructions on how to configure Kestrel and gRPC clients on macOS, visit https://go.microsoft.com/fwlink/?linkid=2099682
         public static IHostBuilder CreateHostBuilder(string[] args) =>
 
-            // TODO: config ¸¦ Startup ¿¡ ³Ñ±â´Â ¹æ¹ý.
+            // TODO: config ë¥¼ Startup ì— ë„˜ê¸°ëŠ” ë°©ë²•.
 
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
