@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+ï»¿using System.Threading.Tasks;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
 using K2;
@@ -37,7 +37,7 @@ namespace K2svc.Frontend
                 var client = new K2B.UserSession.UserSessionClient(channel);
                 var result = await client.AddUserAsync(new K2B.AddUserRequest
                 {
-                    Force = true, // Ç×»ó ¼º°ø
+                    Force = true, // í•­ìƒ ì„±ê³µ
                     ServerId = config.ServerId,
                     UserId = userId,
                     PushBackendAddress = config.PushBackendAddress
@@ -82,13 +82,13 @@ namespace K2svc.Frontend
             var credentials = new SigningCredentials(InitService.SecurityKey, SecurityAlgorithms.HmacSha256);
             var token = new JwtSecurityToken("k2server", "k2client", claims, signingCredentials: credentials);
 
-            // »õ¹öÀüÀÇ ¹®¼­¿¡´Â ¾ø´Â ³»¿ëÀÌ±ä ÇÑµ¥, https://docs.microsoft.com/en-us/previous-versions/visualstudio/dn464181(v=vs.114)?redirectedfrom=MSDN#thread-safety
-            // thread safety °¡ °ÆÁ¤µÇ¹Ç·Î wtSecurityTokenHandler ¸¦ Ç×»ó »õ instance »ı¼ºÇØ »ç¿ë
+            // ìƒˆë²„ì „ì˜ ë¬¸ì„œì—ëŠ” ì—†ëŠ” ë‚´ìš©ì´ê¸´ í•œë°, https://docs.microsoft.com/en-us/previous-versions/visualstudio/dn464181(v=vs.114)?redirectedfrom=MSDN#thread-safety
+            // thread safety ê°€ ê±±ì •ë˜ë¯€ë¡œ wtSecurityTokenHandler ë¥¼ í•­ìƒ ìƒˆ instance ìƒì„±í•´ ì‚¬ìš©
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
 
-        public class Singleton // ÁÁÀº naming ¾øÀ»±î..
+        public class Singleton // ì¢‹ì€ naming ì—†ì„ê¹Œ..
         {
             private Dictionary<string, User> users = new Dictionary<string, User>();
             public bool IsAvailable { get { lock (users) return users.Count > 0; } }
@@ -118,7 +118,7 @@ namespace K2svc.Frontend
 
             public bool Disconnect(string userId)
             {
-                // available ¸¸ ¼³Á¤ÇØÁÖ¸é, PushBegin ÀÇ async loop ¿¡¼­ ¿¬°áÁ¾·á ¹× remove °¡ µ¿ÀÛÇÒ °Í.
+                // available ë§Œ ì„¤ì •í•´ì£¼ë©´, PushBegin ì˜ async loop ì—ì„œ ì—°ê²°ì¢…ë£Œ ë° remove ê°€ ë™ì‘í•  ê²ƒ.
 
                 lock (users)
                 {

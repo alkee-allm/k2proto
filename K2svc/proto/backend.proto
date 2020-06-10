@@ -1,8 +1,8 @@
-// server - server ÀÇ service, rpc, message Á¤ÀÇ.
+ï»¿// server - server ì˜ service, rpc, message ì •ì˜.
 
 syntax = "proto3";
 
-// import "sample.proto";  // °øÅë message ¸¦ »ç¿ëÇÒ ¼ö ÀÖÀ¸¸é ÁÁ°Ú´Âµ¥.. °æ·Î¹®Á¦·Î ½±Áö ¾Ê³×.
+// import "sample.proto";  // ê³µí†µ message ë¥¼ ì‚¬ìš©í•  ìˆ˜ ìˆìœ¼ë©´ ì¢‹ê² ëŠ”ë°.. ê²½ë¡œë¬¸ì œë¡œ ì‰½ì§€ ì•Šë„¤.
 
 package K2B;
 
@@ -12,12 +12,12 @@ message Null {} // same as google.protobuf.Empty
 service ServerManagement {
 	// backend listen
 	rpc Register (RegisterRequest) returns (RegisterResponse);
-	rpc Unregister (UnregisterRequest) returns (Null); // Á¤»óÀûÀÎ Á¾·á
+	rpc Unregister (UnregisterRequest) returns (Null); // ì •ìƒì ì¸ ì¢…ë£Œ
 	rpc Ping (PingRequest) returns (Null);
 	rpc Broadcast (PushRequest) returns (Null);
 
 	// frontend listen
-	rpc StopF (Null) returns (Null); // Á¾·á ¸í·É
+	rpc StopF (Null) returns (Null); // ì¢…ë£Œ ëª…ë ¹
 	rpc BroadcastF (PushRequest) returns (Null);
 }
 service UserSession {
@@ -54,12 +54,12 @@ message PushRequest {
 	PushResponse pushMessage = 2;
 }
 // ServerManagement ///////////////////////////////////////////////////////////
-message RegisterRequest { // ¼­¹ö°¡ ½ÃÀÛµÇ¸é ½ÇÇàÈ¯°æ Á¤º¸¿Í ÇÔ²² ¿äÃ»
+message RegisterRequest { // ì„œë²„ê°€ ì‹œì‘ë˜ë©´ ì‹¤í–‰í™˜ê²½ ì •ë³´ì™€ í•¨ê»˜ ìš”ì²­
 	repeated string args = 1;
 }
 
 message RegisterResponse { // 
-	bool ok = 1; // false ÀÎ °æ¿ì ÀÏÁ¤ ½Ã°£ ÀÌÈÄ¿¡ ´Ù½Ã register(¼­ºñ½º ½ÃÀÛ) ½Ãµµ
+	bool ok = 1; // false ì¸ ê²½ìš° ì¼ì • ì‹œê°„ ì´í›„ì— ë‹¤ì‹œ register(ì„œë¹„ìŠ¤ ì‹œì‘) ì‹œë„
 	string serverId = 2;
 	uint32 frontendListeningPort = 3;
 	string pushBackendAddress = 4;
@@ -93,7 +93,7 @@ message AddUserRequest {
 	string pushBackendAddress = 2;
 	string userId = 3;
 
-	bool force = 4; // ÀÌ¹Ì ¿¬°áÁßÀÌ¶óµµ °­Á¦·Î ´ëÃ¼ÇÏ°í KickÀ» ¹ß»ı½ÃÅ³ °Í.
+	bool force = 4; // ì´ë¯¸ ì—°ê²°ì¤‘ì´ë¼ë„ ê°•ì œë¡œ ëŒ€ì²´í•˜ê³  Kickì„ ë°œìƒì‹œí‚¬ ê²ƒ.
 }
 
 message AddUserResponse {
@@ -102,7 +102,7 @@ message AddUserResponse {
 		FORCE_ADDED = 1;
 		ALREADY_CONNECTED = 2;
 
-		UNKNOWN_ERROR = 10; // ÇØ´ç ¼­¹ö¿¡ ÀÌ¹Ì ÀÖ´Ù°í ³ª¿À´Â °æ¿ì µî
+		UNKNOWN_ERROR = 10; // í•´ë‹¹ ì„œë²„ì— ì´ë¯¸ ìˆë‹¤ê³  ë‚˜ì˜¤ëŠ” ê²½ìš° ë“±
 	}
 	ResultType result = 1;
 }
