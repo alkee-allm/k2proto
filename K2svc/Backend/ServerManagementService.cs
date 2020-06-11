@@ -119,7 +119,7 @@ namespace K2svc.Backend
         private struct Server : IEquatable<Server>
         { // thread safety 를 위해 struct
             public string Id;
-            public uint FrontendListeningPort;
+            public int FrontendListeningPort;
             public string PushBackendAddress;
 
             public DateTime LastPingTime;
