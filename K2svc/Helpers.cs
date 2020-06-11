@@ -5,6 +5,11 @@ using System.Text;
 
 namespace K2svc
 {
+    public static class DefaultValues
+    {
+        public static string SERVER_MANAGEMENT_SERVICE_ADDRESS = "http://localhost:5000";
+    }
+
     public static class Security
     {
         private static string VERSION = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(2); // major.minor
