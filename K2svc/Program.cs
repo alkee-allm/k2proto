@@ -1,6 +1,5 @@
 ﻿using K2B;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Threading.Tasks;
@@ -43,23 +42,18 @@ namespace K2svc
 
         // Additional configuration is required to successfully run gRPC on macOS.
         // For instructions on how to configure Kestrel and gRPC clients on macOS, visit https://go.microsoft.com/fwlink/?linkid=2099682
-        public static IHostBuilder CreateHostBuilder(string[] args, ServiceConfiguration config) =>
-
-            // TODO: config 를 Startup 에 넘기는 방법.
-
-            Host.CreateDefaultBuilder(args)
-                //.ConfigureAppConfiguration(builder =>
-                //{
-                //})
-                //.ConfigureServices(services =>
-                //{
-                //    services.Configure<ServiceConfiguration>(config);
-                //})
+        public static IHostBuilder CreateHostBuilder(string[] args, ServiceConfiguration config)
+        {
+            return Host.CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration(builder =>
+                {
+                    builder.Add(config);
+                })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
                 });
-
+        }
 
         private static async Task<ServiceConfiguration> LoadConfig(string serverAddress, string[] args)
         {

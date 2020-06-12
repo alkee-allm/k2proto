@@ -3,7 +3,6 @@ using K2B;
 using K2svc.Frontend;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace K2svc.Backend
@@ -11,14 +10,12 @@ namespace K2svc.Backend
     public class UserSessionService : UserSession.UserSessionBase
     {
         private readonly ILogger<UserSessionService> logger;
-        private readonly ServiceConfiguration config;
         private readonly PushService.Singleton push;
         private static Dictionary<string/*userId*/, string/*pushBackendAddress*/> sessions = new Dictionary<string, string>();
 
-        public UserSessionService(ILogger<UserSessionService> _logger, ServiceConfiguration _config, PushService.Singleton _push)
+        public UserSessionService(ILogger<UserSessionService> _logger, PushService.Singleton _push)
         {
             logger = _logger;
-            config = _config;
             push = _push;
         }
 
