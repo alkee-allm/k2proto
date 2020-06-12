@@ -61,10 +61,15 @@ message RegisterRequest { // 서버가 시작되면 실행환경 정보와 함�
 message RegisterResponse { // 
 	bool ok = 1; // false 인 경우 일정 시간 이후에 다시 register(서비스 시작) 시도
 	string serverId = 2;
-	uint32 frontendListeningPort = 3;
-	string pushBackendAddress = 4;
 
-	// more service configuration here
+	// configuration as service
+	int32 frontendListeningPort = 11; // frontend
+	string pushBackendAddress = 12; // backend
+
+	// configuration as backend
+	string serverManagementBackendAddress = 21;
+	string userSessionBackendAddress = 22;
+
 }
 
 message UnregisterRequest {

@@ -6,8 +6,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
-using System.Collections.Generic;
-using System.Linq.Expressions;
 
 namespace K2svc
 {
@@ -23,12 +21,8 @@ namespace K2svc
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
-            // TODO: main 에서부터 온 config 를 사용해야하는데...
-            var settings = new ServiceConfiguration();
-            config.GetSection("K2").Bind(settings);
-
             // 공통 resource(singleton)
-            services.AddSingleton(settings);
+            services.AddSingleton(config.GetSection(ServiceConfiguration.SECTION_NAME).Get<ServiceConfiguration>()); // 쉽게 접근해 사용할 수 있도록
             services.AddSingleton<Frontend.PushService.Singleton>();
 
             services.AddGrpc();

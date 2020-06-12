@@ -4,7 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Grpc.Core;
 using K2B;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -27,7 +26,7 @@ namespace K2svc.Backend
         #region rpc - backend listen
         public override Task<RegisterResponse> Register(RegisterRequest request, ServerCallContext context)
         {
-            // TODO: server configuration here.
+            // TODO: server management here.
             var server = new Server
             {
                 Id = "dev",
@@ -119,7 +118,7 @@ namespace K2svc.Backend
         private struct Server : IEquatable<Server>
         { // thread safety 를 위해 struct
             public string Id;
-            public uint FrontendListeningPort;
+            public int FrontendListeningPort;
             public string PushBackendAddress;
 
             public DateTime LastPingTime;
