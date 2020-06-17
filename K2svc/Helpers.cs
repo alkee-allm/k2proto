@@ -7,8 +7,8 @@ namespace K2svc
 {
     public static class DefaultValues
     {
-        public static string SERVER_MANAGEMENT_SERVICE_ADDRESS = "http://localhost:5000";
-        public static int SERVER_REGISTER_DELAY_MILLISECONDS = 2000;
+        public static readonly string SERVER_MANAGEMENT_BACKEND_ADDRESS = "http://localhost:5000";
+        public static readonly int SERVER_REGISTER_DELAY_MILLISECONDS = 2000;
     }
 
     public static class Security

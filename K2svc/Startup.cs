@@ -63,7 +63,7 @@ namespace K2svc
             config.Bind("K2", conf);
             life.ApplicationStarted.Register(() =>
             {
-                using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(conf.ServerManagementServiceAddress);
+                using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(conf.ServerManagementBackendAddress);
                 var client = new K2B.ServerManagement.ServerManagementClient(channel);
                 var result = client.Register(new K2B.RegisterRequest());
             });

@@ -30,7 +30,6 @@ namespace K2svc.Backend
             var server = new Server
             {
                 Id = "dev",
-                FrontendListeningPort = 5001,
                 PushBackendAddress = "http://localhost:5000",
 
                 LastPingTime = DateTime.Now
@@ -41,7 +40,7 @@ namespace K2svc.Backend
             {
                 Ok = true,
                 ServerId = server.Id,
-                FrontendListeningPort = server.FrontendListeningPort,
+
                 PushBackendAddress = server.PushBackendAddress,
             });
         }
@@ -117,11 +116,15 @@ namespace K2svc.Backend
 
         private struct Server : IEquatable<Server>
         { // thread safety 를 위해 struct
-            public string Id;
-            public int FrontendListeningPort;
-            public string PushBackendAddress;
+            public string Id { get; set; }
+            public string PushBackendAddress { get; set; }
+            public DateTime LastPingTime { get; set; }
+            public int Population { get; set; }
 
-            public DateTime LastPingTime;
+            // service types
+            public bool HasFrontend { get; set; }
+            public bool HasServerManagementBackend { get; set; }
+            public bool HasUserSessionBackend { get; set; }
 
             public bool Equals([AllowNull] Server other)
             { // List.Remove 에 사용하기 위해 IEquatable

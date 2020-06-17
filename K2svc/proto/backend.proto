@@ -58,18 +58,17 @@ message RegisterRequest { // 서버가 시작되면 실행환경 정보와 함�
 	repeated string args = 1;
 }
 
-message RegisterResponse { // 
-	bool ok = 1; // false 인 경우 일정 시간 이후에 다시 register(서비스 시작) 시도
+message RegisterResponse {
+	bool ok = 1; // false 인 경우 일정 시간 이후에 다시 register(서비스 시작) 시도(standby)
 	string serverId = 2;
 
-	// configuration as service
-	int32 frontendListeningPort = 11; // frontend
-	string pushBackendAddress = 12; // backend
-
 	// configuration as backend
-	string serverManagementBackendAddress = 21;
-	string userSessionBackendAddress = 22;
+	// enableServerManagement 는 local 설정에 따르기 때문에 필요 없을 것.
+	bool enableUserSession = 12;
 
+	// configuration as frontend
+	string pushBackendAddress = 21;
+	string userSessionBackendAddress = 22;
 }
 
 message UnregisterRequest {

@@ -32,7 +32,7 @@ namespace K2svc.Frontend
             if (string.IsNullOrEmpty(userId)) throw new ApplicationException($"invalid session state of the user : {context.RequestHeaders}");
 
             logger.LogInformation($"begining push service for : {userId}");
-            using (var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionServiceAddress))
+            using (var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress))
             {
                 var client = new K2B.UserSession.UserSessionClient(channel);
                 var result = await client.AddUserAsync(new K2B.AddUserRequest
@@ -61,7 +61,7 @@ namespace K2svc.Frontend
 
             logger.LogInformation($"ending push service for : {userId}");
 
-            using (var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionServiceAddress))
+            using (var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress))
             {
                 var client = new K2B.UserSession.UserSessionClient(channel);
                 var result = await client.RemoveUserAsync(new K2B.RemoveUserRequest { ServerId = config.ServerId, UserId = userId });
