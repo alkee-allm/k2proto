@@ -9,31 +9,29 @@ skip 가능.
 
  1. 개발환경
 
-   * 64 bit Windows 10
-   * Visual studio 2019 16.6.1
-   * Windows SDK 10.0.18362.0
-   * .NET core 3.1 SDK
-   * git 2.22.0
+    * 64 bit Windows 10
+    * Visual studio 2019 16.6.1
+    * Windows SDK 10.0.18362.0
+    * .NET core 3.1 SDK
+    * git 2.22.0
 
- 2. [vcpkg](https://docs.microsoft.com/ko-kr/cpp/build/vcpkg?view=vs-2019) 설치
+ 2. client(C++) [gRPC](https://grpc.io) 및 추가 library 사용을 위한 package 설치
+ 
+    1) [vcpkg](https://docs.microsoft.com/ko-kr/cpp/build/vcpkg?view=vs-2019) 설치 ; `git clone https://github.com/microsoft/vcpkg.git` 실행 후 powershell 또는 cmd 에서 `bootstrap-vcpkg.bat` 실행
 
-    1) vcpkg clone `git clone https://github.com/microsoft/vcpkg.git`
+    2) [protobuf](https://developers.google.com/protocol-buffers) pakcage 설치 `.\vcpkg.exe install protobuf:x64-windows`
 
-    2) powershell 또는 cmd 에서 `bootstrap-vcpkg.bat` 실행
+    3) grpc package 설치 `.\vcpkg.exe install grpc:x64-windows`
 
- 3. [protobuf](https://developers.google.com/protocol-buffers) pakcage 설치 `.\vcpkg.exe install protobuf:x64-windows`
+    4) winsock2 pakcage 설치 `.\vcpkg.exe install winsock2:x64-windows`
 
- 4. grpc package 설치 `.\vcpkg.exe install grpc:x64-windows`
+    5) 관리자 권한으로 pwoershell 혹은 cmd 에서 `.\vcpkg.exe integrate install` 실행해 visual studio 에서 사용가능하도록 등록
 
- 5. winsock2 pakcage 설치 `.\vcpkg.exe install winsock2:x64-windows`
+ 3. visual studio 에서 `K2.sln` 파일 열기
 
- 6. 관리자 권한으로 pwoershell 혹은 cmd 에서 `.\vcpkg.exe integrate install` 실행해 visual studio 에서 사용가능하도록 등록
+ 4. solution 속성 설정(properies)에서 `시작 프로젝트`에서 여러개의 시작프로젝트로 설정하고 포함되어있는 모든 프로젝트를 시작으로 설정.
 
- 7. visual studio 에서 `K2.sln` 파일 열기
-
- 8. solution 속성 설정(properies)에서 `시작 프로젝트`에서 여러개의 시작프로젝트로 설정하고 포함되어있는 모든 프로젝트를 시작으로 설정.
-
- 9. Run debug
+ 5. Run debug
 
 ### Design
 
@@ -42,5 +40,5 @@ skip 가능.
 
 ### Test
 
-  - client 실행창에서 최초에 id 와 password 를 묻게 되는데, password 의 경우 k 로 시작하면 항상 성공하고 그렇지 않으면 실패하도록 되어있음.
-
+  - client 실행창에서 최초에 id 와 password 를 묻게 되는데, [password 의 경우 k 로 시작하면 항상 성공하고 그렇지 않으면 실패하도록](https://github.com/alkee-allm/k2proto/blob/0aeb1da3996fe5abccce6a82b81549c80a425b9c/K2svc/Frontend/InitService.cs#L21-L30) 되어있음.
+  
