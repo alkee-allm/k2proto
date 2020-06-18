@@ -23,7 +23,7 @@ namespace K2svc.Frontend
         #region rpc
         public override async Task<Null> Broadacast(BroadacastRequest request, ServerCallContext context)
         {
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementServiceAddress);
+            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress);
             var client = new K2B.ServerManagement.ServerManagementClient(channel);
             await client.BroadcastAsync(new K2B.PushRequest
             {
@@ -42,7 +42,7 @@ namespace K2svc.Frontend
             if (string.IsNullOrEmpty(userId)) throw new ApplicationException($"invalid session state of the user : {context.RequestHeaders}");
 
             // UserSessionService 로 보내기
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionServiceAddress);
+            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress);
             var client = new K2B.UserSession.UserSessionClient(channel);
             var result = await client.PushAsync(new K2B.PushRequest
             {
@@ -87,7 +87,7 @@ namespace K2svc.Frontend
         public override async Task<Null> Kick(KickRequest request, ServerCallContext context)
         {
             // UserSessionService 로 보내기
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionServiceAddress);
+            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress);
             var client = new K2B.UserSession.UserSessionClient(channel);
             var result = await client.KickUserAsync(new K2B.KickUserRequest { UserId = request.Target });
             logger.LogInformation($"kick result = {result.Result}");

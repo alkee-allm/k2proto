@@ -7,8 +7,9 @@ namespace K2svc
 {
     public static class DefaultValues
     {
-        public static string SERVER_MANAGEMENT_SERVICE_ADDRESS = "http://localhost:5000";
-        public static int SERVER_REGISTER_DELAY_MILLISECONDS = 2000;
+        public static readonly string SERVER_MANAGEMENT_BACKEND_ADDRESS = "http://localhost:5000";
+        public static readonly int SERVER_REGISTER_DELAY_MILLISECONDS = 2000;
+        public static readonly double SERVER_MANAGEMENT_PING_INTERVAL_SECONDS = 1.0;
     }
 
     public static class Security
@@ -29,6 +30,21 @@ namespace K2svc
                     Sb.Append(b.ToString("x2"));
             }
             return Sb.ToString();
+        }
+    }
+
+    // swift defer 와 같이, using 이 끝났을 때 실행되는 함수 지정 ; https://docs.swift.org/swift-book/ReferenceManual/Statements.html#grammar_defer-statement
+    public class Defer : IDisposable
+    {
+        private Action work;
+        public Defer(Action work)
+        {
+            this.work = work;
+        }
+
+        void IDisposable.Dispose()
+        {
+            work();
         }
     }
 }
