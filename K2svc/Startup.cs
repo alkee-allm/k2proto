@@ -25,6 +25,10 @@ namespace K2svc
             services.AddSingleton(config.GetSection(ServiceConfiguration.SECTION_NAME).Get<ServiceConfiguration>()); // 쉽게 접근해 사용할 수 있도록
             services.AddSingleton<Frontend.PushService.Singleton>();
 
+            // hosted services
+            services.AddHostedService<Background.ServerManagementBackground>();
+
+            // grpc
             services.AddGrpc();
 
             // https://github.com/dotnet/AspNetCore.Docs/blob/master/aspnetcore/grpc/authn-and-authz.md

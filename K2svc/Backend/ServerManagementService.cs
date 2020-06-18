@@ -53,7 +53,7 @@ namespace K2svc.Backend
             return Task.FromResult(new Null());
         }
 
-        public override Task<Null> Ping(PingRequest request, ServerCallContext context)
+        public override Task<PingResponse> Ping(PingRequest request, ServerCallContext context)
         {
             lock (servers)
             {
@@ -61,7 +61,7 @@ namespace K2svc.Backend
                 if (i < 0)
                 {
                     logger.LogInformation($"{request.ServerId} server requested ping, but NOT in the list");
-                    return Task.FromResult(new Null());
+                    return Task.FromResult(new PingResponse { Ok = false });
                 }
                 // ping 순서대로 정렬 유지해 list 뒤쪽에 가장 오래되어 처리가 필요한 server 가 존재할 수 있도록
                 var server = servers[i];
@@ -70,7 +70,7 @@ namespace K2svc.Backend
                 servers.Insert(0, server);
             }
 
-            return Task.FromResult(new Null());
+            return Task.FromResult(new PingResponse { Ok = true });
         }
 
         public override async Task<Null> Broadcast(PushRequest request, ServerCallContext context)

@@ -13,7 +13,7 @@ service ServerManagement {
 	// backend listen
 	rpc Register (RegisterRequest) returns (RegisterResponse);
 	rpc Unregister (UnregisterRequest) returns (Null); // 정상적인 종료
-	rpc Ping (PingRequest) returns (Null);
+	rpc Ping (PingRequest) returns (PingResponse);
 	rpc Broadcast (PushRequest) returns (Null);
 
 	// frontend listen
@@ -53,9 +53,10 @@ message PushRequest {
 	// K2.PushResponse pushMessage = 2;
 	PushResponse pushMessage = 2;
 }
+
 // ServerManagement ///////////////////////////////////////////////////////////
 message RegisterRequest { // 서버가 시작되면 실행환경 정보와 함께 요청
-	repeated string args = 1;
+	string version = 1;
 }
 
 message RegisterResponse {
@@ -87,7 +88,10 @@ message PingRequest {
 	uint32 population = 101;
 
 	// more service status here
-	
+}
+
+message PingResponse {
+	bool ok = 1; // false 인 경우 정책에 따라 서비스를 종료하거나, 다시 register 하거나 등등
 }
 /////////////////////////////////////////////////////////// ServerManagement //
 

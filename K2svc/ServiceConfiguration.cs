@@ -29,14 +29,17 @@ namespace K2svc
 
         public override void Load()
         {
-            Data.Add($"{ServiceConfiguration.SECTION_NAME}:{nameof(ServerId)}", $"{ServerId}");
-            Data.Add($"{ServiceConfiguration.SECTION_NAME}:{nameof(PushBackendAddress)}", $"{PushBackendAddress}");
+            Data.Add($"{SECTION_NAME}:{nameof(ServerId)}", $"{ServerId}");
+            Data.Add($"{SECTION_NAME}:{nameof(PushBackendAddress)}", $"{PushBackendAddress}");
 
-            Data.Add($"{ServiceConfiguration.SECTION_NAME}:{nameof(ServerManagementBackendAddress)}", $"{ServerManagementBackendAddress}");
-            Data.Add($"{ServiceConfiguration.SECTION_NAME}:{nameof(UserSessionBackendAddress)}", $"{UserSessionBackendAddress}");
+            Data.Add($"{SECTION_NAME}:{nameof(ServerManagementBackendAddress)}", $"{ServerManagementBackendAddress}");
+            Data.Add($"{SECTION_NAME}:{nameof(UserSessionBackendAddress)}", $"{UserSessionBackendAddress}");
 
-            Data.Add($"{ServiceConfiguration.SECTION_NAME}:{nameof(EnableServerManagementBackend)}", $"{EnableServerManagementBackend}");
-            Data.Add($"{ServiceConfiguration.SECTION_NAME}:{nameof(EnableUserSessionBackend)}", $"{EnableUserSessionBackend}");
+            Data.Add($"{SECTION_NAME}:{nameof(EnableServerManagementBackend)}", $"{EnableServerManagementBackend}");
+            Data.Add($"{SECTION_NAME}:{nameof(EnableUserSessionBackend)}", $"{EnableUserSessionBackend}");
         }
+
+        // internal valuse to communicate
+        internal bool Registered = false;
     }
 }
