@@ -30,7 +30,11 @@ namespace K2svc
             {
                 Console.WriteLine("running as ServerManagement backend.");
             }
-            var config = new ServiceConfiguration { ServerManagementBackendAddress = serverManagementBackendAddress };
+            var config = new ServiceConfiguration
+            {
+                ServerManagementBackendAddress = serverManagementBackendAddress,
+                EnableUserSessionBackend = args.Length == 0,
+            };
 
             // https://docs.microsoft.com/en-us/aspnet/core/grpc/troubleshoot?view=aspnetcore-3.0#call-insecure-grpc-services-with-net-core-client
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true); // http 허용

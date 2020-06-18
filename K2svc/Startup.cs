@@ -59,25 +59,22 @@ namespace K2svc
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime life)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime life, ServiceConfiguration cfg)
         {
-            // 임시 ///////////////////////////////////////////////////////////////////////////////////////
-            // StartUp 이 만들어지기 전에(Main 함수?) register 를 호출해 설정을 업데이트하고 서비스를 시작해야한다.
-            ServiceConfiguration conf = new ServiceConfiguration();
-            config.Bind("K2", conf);
-            life.ApplicationStarted.Register(() =>
-            {
-                using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(conf.ServerManagementBackendAddress);
-                var client = new K2B.ServerManagement.ServerManagementClient(channel);
-                var result = client.Register(new K2B.RegisterRequest());
-            });
-            /////////////////////////////////////////////////////////////////////////////////////// 임시 //
-
-
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
+
+            // service blocker
+            app.Use(async (context, next) =>
+            { // https://docs.microsoft.com/ko-kr/aspnet/core/fundamentals/middleware/write?view=aspnetcore-3.1#middleware-class
+                if (cfg.Registered == false && cfg.EnableServerManagementBackend == false)
+                { // 아직 register 되지 않은 서버는 사용할 수 없음
+                    return;
+                }
+                await next();
+            });
 
             // 여기(app.Use~  middleware) 순서 중요 ; https://docs.microsoft.com/ko-kr/aspnet/core/grpc/authn-and-authz?view=aspnetcore-3.1
             app.UseRouting();
