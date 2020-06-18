@@ -360,4 +360,10 @@ MigrationBackup/
 FodyWeavers.xsd
 
 
+##
+## Customized
+##
+
+# Generated code
+K2client/proto/
 
