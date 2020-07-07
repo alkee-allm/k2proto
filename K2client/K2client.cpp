@@ -14,6 +14,74 @@ using namespace std;
 
 #include "K2helper.hpp"
 void pushResponseThread(const string& channelUrl, AuthCallback& auth);
+void CommandBroadcast(K2::PushSample::Stub& stub, const string& message)
+{
+	K2::BroadacastRequest req;
+	req.set_message(message);
+	grpc::ClientContext context;
+	K2::Null empty;
+	auto status = stub.Broadacast(&context, req, &empty);
+	dumpStatus(status);
+}
+void CommandHello(K2::PushSample::Stub& stub)
+{ //  jwt 에 pushBackend 를 넣고 이를 통해 push 테스트
+	grpc::ClientContext context;
+	K2::Null empty;
+	auto status = stub.Hello(&context, empty, &empty);
+	dumpStatus(status);
+}
+void CommandMessage(K2::PushSample::Stub& stub, const string& msgCommand)
+{ // 지정한 target 의 session 을 찾아 push 테스트
+	auto subcmd = parse(msgCommand);
+	K2::MessageRequest req;
+	req.set_target(subcmd.Header);
+	req.set_message(subcmd.Body);
+
+	grpc::ClientContext context;
+	K2::Null empty;
+	auto status = stub.Message(&context, req, &empty);
+	dumpStatus(status);
+}
+void CommandKick(K2::PushSample::Stub& stub, const string& target)
+{
+	K2::KickRequest req;
+	req.set_target(target);
+
+	grpc::ClientContext context;
+	K2::Null empty;
+	auto status = stub.Kick(&context, req, &empty);
+	dumpStatus(status);
+}
+void CommandCommand(K2::SimpleSample::Stub& stub, const string& param)
+{
+	K2::SampleCommandRequest req;
+	req.set_param1(param);
+
+	grpc::ClientContext context;
+	K2::SampleCommandResponse rsp;
+	auto status = stub.SampleCommand(&context, req, &rsp);
+	cout << "result = " << rsp.result() << ", value = " << rsp.value() << endl;
+	dumpStatus(status);
+}
+void CommandInfo(K2::SimpleSample::Stub& stub, const string& filter)
+{
+	K2::SampleInfoRequest req;
+	req.set_filter(filter);
+
+	grpc::ClientContext context;
+	K2::SampleInfoResponse rsp;
+	auto status = stub.SampleInfo(&context, req, &rsp);
+	cout << "info1 = " << rsp.info1() << ", info2 = [";
+	for (auto i = rsp.info2().begin(); i != rsp.info2().end(); ++i)
+	{
+		cout << *i << ", ";
+	}
+	cout << "], info3 = { type = " << rsp.info3().SampleType_Name(rsp.info3().type()) << ", nestedValue = "
+		<< rsp.info3().nestedvalue() << "}\n";
+
+	dumpStatus(status);
+}
+
 int main() {
 
 	// id - password 준비
@@ -81,7 +149,8 @@ int main() {
 
 	// Sample service test
 	auto channel = grpc::CreateChannel(CHANNEL_URL, creds);
-	K2::PushSample::Stub sampleStub(channel);
+	K2::PushSample::Stub pushStub(channel);
+	K2::SimpleSample::Stub simpleStub(channel);
 
 	cout << "type 'quit' to terminate\n";
 	string line;
@@ -90,37 +159,13 @@ int main() {
 		getline(cin, line);
 		auto cmd = parse(line);
 
-		if (cmd.Header == "broadcast") {
-			K2::BroadacastRequest req;
-			req.set_message(cmd.Body);
-
-			grpc::ClientContext context;
-			auto status = sampleStub.Broadacast(&context, req, &empty);
-			dumpStatus(status);
-		}
-		else if (cmd.Header == "hello") { // hello ; jwt 에 pushBackend 를 넣고 이를 통해 push 테스트
-			grpc::ClientContext context;
-			auto status = sampleStub.Hello(&context, empty, &empty);
-			dumpStatus(status);
-		}
-		else if (cmd.Header == "message") { // message ; 지정한 target 의 session 을 찾아 push 테스트
-			auto subcmd = parse(cmd.Body);
-			K2::MessageRequest req;
-			req.set_target(subcmd.Header);
-			req.set_message(subcmd.Body);
-
-			grpc::ClientContext context;
-			auto status = sampleStub.Message(&context, req, &empty);
-			dumpStatus(status);
-		}
-		else if (cmd.Header == "kick") {
-			K2::KickRequest req;
-			req.set_target(cmd.Body);
-
-			grpc::ClientContext context;
-			auto status = sampleStub.Kick(&context, req, &empty);
-			dumpStatus(status);
-		}
+		if (cmd.Header == "broadcast") CommandBroadcast(pushStub, cmd.Body);
+		else if (cmd.Header == "hello") CommandHello(pushStub);
+		else if (cmd.Header == "message") CommandMessage(pushStub, cmd.Body);
+		else if (cmd.Header == "kick") CommandKick(pushStub, cmd.Body);
+		else if (cmd.Header == "command") CommandCommand(simpleStub, cmd.Body);
+		else if (cmd.Header == "info") CommandInfo(simpleStub, cmd.Body);
+		else cout << "unknwon command\n";
 	}
 
 	::TerminateThread(pushThread->native_handle(), 1); // protable 한 강제 thread 종료 방법이 없다. ; https://stackoverflow.com/questions/12207684

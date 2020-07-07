@@ -93,6 +93,7 @@ namespace K2svc
                 endpoints.MapGrpcService<Frontend.InitService>();
                 endpoints.MapGrpcService<Frontend.PushService>();
                 endpoints.MapGrpcService<Frontend.PushSampleService>();
+                endpoints.MapGrpcService<Frontend.SimpleSampleService>();
 
                 endpoints.MapGet("/", async context =>
                 {
