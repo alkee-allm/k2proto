@@ -23,6 +23,11 @@ service PushSample {
 	rpc Kick (KickRequest) returns (Null);
 }
 
+service SimpleSample {
+	rpc SampleInfo (SampleInfoRequest) returns (SampleInfoResponse);
+	rpc SampleCommand (SampleCommandRequest) returns (SampleCommandResponse);
+}
+
 // Messages
 // Init ///////////////////////////////////////////////////////////////////////
 message StateResponse {
@@ -76,6 +81,40 @@ message KickRequest {
 	string target = 1;
 }
 ///////////////////////////////////////////////////////////////// PushSample //
+
+// SimpleSample ///////////////////////////////////////////////////////////////
+message SampleInfoRequest {
+	string filter = 1;
+}
+
+message SampleInfoResponse {
+	message NestedMessage {
+		enum SampleType {
+			OK = 0;
+			TYPE1 = 1;
+			TYPE2 = 2;
+		}
+		SampleType type = 1;
+		string nestedValue = 2;
+	}
+
+	string info1 = 1;
+	repeated string info2 = 2;
+	NestedMessage info3 = 3;
+}
+
+message SampleCommandRequest {
+	string param1 = 1;
+}
+
+message SampleCommandResponse {
+	string result = 1;
+	int32 value = 2;
+}
+/////////////////////////////////////////////////////////////// SimpleSample //
+
+
+
 
 //
 // chat, message 등의 경우 별도의 service 를 만들지 않고 해당 기능이 필요한

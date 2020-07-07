@@ -86,13 +86,14 @@ namespace K2svc
             {
                 // TODO: reflection 으로 endpoints.MapGrpcService 을 자동화
                 // backend services
-                endpoints.MapGrpcService<Backend.ServerManagementService>();
-                endpoints.MapGrpcService<Backend.UserSessionService>();
+                endpoints.MapGrpcService<Backend.ServerManagementBackend>();
+                endpoints.MapGrpcService<Backend.UserSessionBackend>();
 
                 // frontend services
                 endpoints.MapGrpcService<Frontend.InitService>();
                 endpoints.MapGrpcService<Frontend.PushService>();
                 endpoints.MapGrpcService<Frontend.PushSampleService>();
+                endpoints.MapGrpcService<Frontend.SimpleSampleService>();
 
                 endpoints.MapGet("/", async context =>
                 {

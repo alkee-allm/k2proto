@@ -2,22 +2,36 @@
 using K2B;
 using K2svc.Frontend;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace K2svc.Backend
 {
-    public class UserSessionService : UserSession.UserSessionBase
+    public class UserSessionBackend : UserSession.UserSessionBase
     {
-        private readonly ILogger<UserSessionService> logger;
+        private readonly ILogger<UserSessionBackend> logger;
         private readonly PushService.Singleton push;
         private static Dictionary<string/*userId*/, string/*pushBackendAddress*/> sessions = new Dictionary<string, string>();
 
-        public UserSessionService(ILogger<UserSessionService> _logger, PushService.Singleton _push)
+        public UserSessionBackend(ILogger<UserSessionBackend> _logger, PushService.Singleton _push)
         {
             logger = _logger;
             push = _push;
         }
+
+        #region helpers - To Frontend listenr
+        public static async Task<string> GetOnlineUserId(ServerCallContext context, string pushBackendAddress)
+        { // TODO: https://github.com/alkee-allm/k2proto/issues/12#issuecomment-645863822
+            var userId = context.GetHttpContext().User?.Identity?.Name;
+            if (string.IsNullOrEmpty(userId)) throw new ApplicationException($"invalid session state of the user : {context.RequestHeaders}");
+            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
+            var client = new UserSession.UserSessionClient(channel);
+            var response = await client.IsOnlineFAsync(new IsOnlineRequest { UserId = userId });
+            if (response.Result == IsOnlineResponse.Types.ResultType.Offline) throw new ApplicationException($"offline(not push connected) user : {userId}");
+            return userId;
+        }
+        #endregion
 
         #region rpc - backend listen
         public override async Task<AddUserResponse> AddUser(AddUserRequest request, ServerCallContext context)
@@ -34,7 +48,7 @@ namespace K2svc.Backend
                 if (exist)
                 {
                     if (request.Force)
-                    logger.LogWarning($"{request.UserId} already exist." + (request.Force ? " EVEN AFTER KICKED" : ""));
+                        logger.LogWarning($"{request.UserId} already exist." + (request.Force ? " EVEN AFTER KICKED" : ""));
                     return new AddUserResponse { Result = AddUserResponse.Types.ResultType.AlreadyConnected };
                 }
                 sessions.Add(request.UserId, request.PushBackendAddress);
@@ -56,6 +70,7 @@ namespace K2svc.Backend
             }
         }
 
+        [Obsolete("use IsOnlineF")] // 중앙에 확인하는 IsOneline 보다 각 pushService 에 요청해 확인하는 GetOnlineUserId(IsOnlineF) 를 사용할 것
         public override Task<IsOnlineResponse> IsOnline(IsOnlineRequest request, ServerCallContext context)
         {
             lock (sessions)
@@ -121,6 +136,16 @@ namespace K2svc.Backend
             }
 
             return new PushResponse { Result = PushResponse.Types.ResultType.NotExist };
+        }
+
+        public override Task<IsOnlineResponse> IsOnlineF(IsOnlineRequest request, ServerCallContext context)
+        {
+            return Task.FromResult(
+                new IsOnlineResponse
+                {
+                    Result = push.Exists(request.UserId) ? IsOnlineResponse.Types.ResultType.Online : IsOnlineResponse.Types.ResultType.Offline
+                }
+            );
         }
         #endregion
     }

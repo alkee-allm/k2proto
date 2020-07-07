@@ -131,9 +131,9 @@ namespace K2svc.Frontend
                 return false;
             }
 
-            public bool Exists(string user)
+            public bool Exists(string userId)
             {
-                return users.ContainsKey(user);
+                return users.ContainsKey(userId);
             }
 
             public User Add(string userId, IServerStreamWriter<PushResponse> stream)

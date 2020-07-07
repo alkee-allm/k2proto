@@ -25,7 +25,7 @@ service UserSession {
 	rpc AddUser (AddUserRequest) returns (AddUserResponse);
 	rpc RemoveUser (RemoveUserRequest) returns (RemoveUserResponse);
 	rpc RemoveUsers (RemoveUsersRequest) returns (RemoveUsersResponse);
-	rpc IsOnline (IsOnlineRequest) returns (IsOnlineResponse);
+	rpc IsOnline (IsOnlineRequest) returns (IsOnlineResponse); // obsolete. use IsOnlineF instead
 
 	rpc KickUser (KickUserRequest) returns (KickUserResponse);
 	rpc Push (PushRequest) returns (PushResponse);
@@ -33,6 +33,7 @@ service UserSession {
 	// frontend listen
 	rpc KickUserF (KickUserRequest) returns (KickUserResponse);
 	rpc PushF (PushRequest) returns (PushResponse);
+	rpc IsOnlineF (IsOnlineRequest) returns (IsOnlineResponse);
 }
 
 // Messages

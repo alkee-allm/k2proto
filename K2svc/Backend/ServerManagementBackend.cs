@@ -9,16 +9,22 @@ using Microsoft.Extensions.Logging;
 
 namespace K2svc.Backend
 {
-    public class ServerManagementService : ServerManagement.ServerManagementBase
+    public class ServerManagementBackend : ServerManagement.ServerManagementBase
     {
-        private readonly ILogger<ServerManagementService> logger;
-        private static List<Server> servers = new List<Server>(); // server 수가 많지 않고, register/unregister 가 빈번하지 않으므로 별도의 index 는 필요 없을 것
+        private readonly ILogger<ServerManagementBackend> logger;
+        private readonly ServiceConfiguration config;
         private readonly IHostApplicationLifetime life;
         private readonly Frontend.PushService.Singleton push;
 
-        public ServerManagementService(ILogger<ServerManagementService> _logger, IHostApplicationLifetime _life, Frontend.PushService.Singleton _push)
+        private static List<Server> servers = new List<Server>(); // server 수가 많지 않고, register/unregister 가 빈번하지 않으므로 별도의 index 는 필요 없을 것
+
+        public ServerManagementBackend(ILogger<ServerManagementBackend> _logger,
+            ServiceConfiguration _config,
+            IHostApplicationLifetime _life, 
+            Frontend.PushService.Singleton _push)
         {
             logger = _logger;
+            config = _config;
             life = _life;
             push = _push;
         }
@@ -31,8 +37,10 @@ namespace K2svc.Backend
             {
                 Id = "dev",
                 PushBackendAddress = "http://localhost:5000",
+                HasFrontend = true,
+                HasUserSessionBackend = true,
 
-                LastPingTime = DateTime.Now
+                LastPingTime = DateTime.Now,
             };
 
             lock (servers) servers.Add(server);
@@ -42,6 +50,8 @@ namespace K2svc.Backend
                 ServerId = server.Id,
 
                 PushBackendAddress = server.PushBackendAddress,
+                EnableUserSession = server.HasUserSessionBackend,
+                UserSessionBackendAddress = config.ServerManagementBackendAddress,
             });
         }
 
@@ -123,7 +133,7 @@ namespace K2svc.Backend
 
             // service types
             public bool HasFrontend { get; set; }
-            public bool HasServerManagementBackend { get; set; }
+            //public bool HasServerManagementBackend { get; set; } // servermanagement 여부는 servermanagement 에서 결정할 수 없다
             public bool HasUserSessionBackend { get; set; }
 
             public bool Equals([AllowNull] Server other)
