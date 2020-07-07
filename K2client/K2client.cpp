@@ -122,6 +122,7 @@ int main() {
 
 		cout << "service version  = " << rsp.version() << "\n"
 			<< "service gateway = " << rsp.gateway() << endl;
+		// TODO: gateway 를 이용해 channel 을 다시 설정
 	}
 	{ // INIT - login
 		K2::LoginResponse rsp;

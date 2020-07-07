@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 
 namespace K2svc.Backend
 {
-    public class UserSessionService : UserSession.UserSessionBase
+    public class UserSessionBackend : UserSession.UserSessionBase
     {
-        private readonly ILogger<UserSessionService> logger;
+        private readonly ILogger<UserSessionBackend> logger;
         private readonly PushService.Singleton push;
         private static Dictionary<string/*userId*/, string/*pushBackendAddress*/> sessions = new Dictionary<string, string>();
 
-        public UserSessionService(ILogger<UserSessionService> _logger, PushService.Singleton _push)
+        public UserSessionBackend(ILogger<UserSessionBackend> _logger, PushService.Singleton _push)
         {
             logger = _logger;
             push = _push;
