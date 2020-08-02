@@ -367,3 +367,5 @@ FodyWeavers.xsd
 # Generated code
 K2client/proto/
 
+# database file
+sample.sqlite3*

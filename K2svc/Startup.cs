@@ -25,6 +25,9 @@ namespace K2svc
             services.AddSingleton(config.GetSection(ServiceConfiguration.SECTION_NAME).Get<ServiceConfiguration>()); // 쉽게 접근해 사용할 수 있도록
             services.AddSingleton<Frontend.PushService.Singleton>();
 
+            // database
+            services.AddDbContext<Db.AccountDb>();
+
             // hosted services
             services.AddHostedService<Background.ServerManagementBackground>();
 

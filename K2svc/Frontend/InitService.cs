@@ -6,16 +6,19 @@ using Microsoft.IdentityModel.Tokens;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using K2;
+using System.Linq;
 
 namespace K2svc.Frontend
 {
     public class InitService : Init.InitBase
     {
         private readonly ILogger<InitService> logger;
+        private readonly Db.AccountDb accountDb;
 
-        public InitService(ILogger<InitService> _logger)
+        public InitService(ILogger<InitService> _logger, Db.AccountDb _accountDb)
         {
             logger = _logger;
+            accountDb = _accountDb;
         }
 
         #region rpc
@@ -23,13 +26,16 @@ namespace K2svc.Frontend
         {
             // (보안) 하나의 연결에서 자주 요청받는 경우 거부하거나, 요청의 횟수에 따라 점점 결과처리의 시간을 지연할 것
 
-            // 임시 - 비밀번호가 k 로 시작하면 무조건 성공
-            if (request.Pw.Length < 1 || request.Pw[0] != 'k')
+
+            var account = from a in accountDb.Accounts
+                          where a.AccountName == request.Id && a.Password == request.Pw
+                          select a;
+            if (account.Count() == 0)
             {
                 return Task.FromResult(new LoginResponse { Result = LoginResponse.Types.ResultType.Mismatched });
             }
 
-            // TODO: 중복 로그인 검사 및 처리(정책 기획 필요)
+            // TODO: 중복 로그인 검사 및 처리(정책 기획 필요; 이전 연걸끊기? 새연결 거부?)
 
             return Task.FromResult(new LoginResponse
             {

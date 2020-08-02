@@ -22,6 +22,9 @@ namespace K2svc
         public bool EnableServerManagementBackend { get; set; } = true;
         public bool EnableUserSessionBackend { get; set; } = true;
 
+        // as database
+        public string DatabaseFileName { get; set; } = "sample.sqlite3";
+
         public IConfigurationProvider Build(IConfigurationBuilder builder)
         {
             return this;
@@ -37,6 +40,8 @@ namespace K2svc
 
             Data.Add($"{SECTION_NAME}:{nameof(EnableServerManagementBackend)}", $"{EnableServerManagementBackend}");
             Data.Add($"{SECTION_NAME}:{nameof(EnableUserSessionBackend)}", $"{EnableUserSessionBackend}");
+
+            Data.Add($"{SECTION_NAME}:{nameof(DatabaseFileName)}", $"{DatabaseFileName}");
         }
 
         // internal valuse to communicate
