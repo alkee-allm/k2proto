@@ -54,5 +54,5 @@ skip 가능.
 
 ### Test
 
-  - client 실행창에서 최초에 id 와 password 를 묻게 되는데, [password 의 경우 k 로 시작하면 항상 성공하고 그렇지 않으면 실패하도록](https://github.com/alkee-allm/k2proto/blob/0aeb1da3996fe5abccce6a82b81549c80a425b9c/K2svc/Frontend/InitService.cs#L21-L30) 되어있음.
-  
+  - client 실행창에서 최초에 id 와 password 를 묻게 되는데, [테스트 계정-비밀번호](https://github.com/alkee-allm/k2proto/blob/17c75fbdb47d1356998f7733e42bf8b081be7a4d/K2svc/Db/AccountDb.cs#L18-L28)에 맞추어 사용 가능
+
