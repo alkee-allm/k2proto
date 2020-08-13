@@ -32,6 +32,12 @@ skip 가능.
  4. solution 속성 설정(properies)에서 `시작 프로젝트`에서 여러개의 시작프로젝트로 설정하고 포함되어있는 모든 프로젝트를 시작으로 설정.
 
  5. Run debug
+ 
+
+### Unity3D client
+
+[K2Unity/Assets/README.md 파일](./K2Unity/Assets/README.md) 참고
+
 
 ### Design
 
