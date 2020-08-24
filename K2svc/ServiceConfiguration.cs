@@ -32,6 +32,7 @@ namespace K2svc
 
         public override void Load()
         {
+            // ArgumentException ; Build() 를 중복으로 사용한 경우
             Data.Add($"{SECTION_NAME}:{nameof(ServerId)}", $"{ServerId}");
             Data.Add($"{SECTION_NAME}:{nameof(PushBackendAddress)}", $"{PushBackendAddress}");
 
