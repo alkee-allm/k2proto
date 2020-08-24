@@ -23,7 +23,7 @@ namespace K2svc.Frontend
         public override async Task<SampleCommandResponse> SampleCommand(SampleCommandRequest request, ServerCallContext context)
         {
             // TODO: 매번 반복해야하는 userId 얻는 코드를 없앨 방법?
-            var userId = await UserSessionBackend.GetOnlineUserId(context, config.PushBackendAddress);
+            var userId = await UserSessionBackend.GetOnlineUserId(context, config.BackendListeningAddress);
 
             return new SampleCommandResponse
             {
@@ -35,7 +35,7 @@ namespace K2svc.Frontend
         public override async Task<SampleInfoResponse> SampleInfo(SampleInfoRequest request, ServerCallContext context)
         {
             // TODO: 매번 반복해야하는 userId 얻는 코드를 없앨 방법?
-            var userId = await UserSessionBackend.GetOnlineUserId(context, config.PushBackendAddress);
+            var userId = await UserSessionBackend.GetOnlineUserId(context, config.BackendListeningAddress);
 
             var rsp = new SampleInfoResponse
             {

@@ -70,18 +70,6 @@ namespace K2svc.Backend
             }
         }
 
-        [Obsolete("use IsOnlineF")] // 중앙에 확인하는 IsOneline 보다 각 pushService 에 요청해 확인하는 GetOnlineUserId(IsOnlineF) 를 사용할 것
-        public override Task<IsOnlineResponse> IsOnline(IsOnlineRequest request, ServerCallContext context)
-        {
-            lock (sessions)
-            {
-                return Task.FromResult(new IsOnlineResponse
-                {
-                    Result = sessions.ContainsKey(request.UserId) ? IsOnlineResponse.Types.ResultType.Online : IsOnlineResponse.Types.ResultType.Offline
-                });
-            }
-        }
-
         public override async Task<KickUserResponse> KickUser(KickUserRequest request, ServerCallContext context)
         {
             string pushBackendAddress;

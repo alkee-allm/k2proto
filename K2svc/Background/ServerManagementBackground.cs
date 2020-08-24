@@ -84,7 +84,7 @@ namespace K2svc.Background
                 if (rsp.Ok)
                 {
                     config.ServerId = rsp.ServerId;
-                    config.PushBackendAddress = rsp.PushBackendAddress;
+                    config.BackendListeningAddress = rsp.PushBackendAddress;
                     config.UserSessionBackendAddress = rsp.UserSessionBackendAddress;
                     config.EnableUserSessionBackend = rsp.EnableUserSession;
                     //config.EnableServerManagementBackend 는 시작환경(args)과 함께 고정

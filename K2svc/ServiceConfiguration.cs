@@ -11,10 +11,12 @@ namespace K2svc
         // 기본값은 개발환경(localhost) 설정으로 해 개발편의성을 높일 것.
         // 이 값들은 ServerManagementService 에 의해 변경 가능
 
-        // as frontend
+        // as service
         public string ServerId { get; set; } = "dev";
-        public string PushBackendAddress { get; set; } = "http://localhost:5000";
+        public string BackendListeningAddress { get; set; } = "http://localhost:5000";
+        public string FrontendListeningAddress { get; set; } = "http://localhost:5000"; // NullOrEmpty 인 경우 frontend service disable
 
+        // specific backend addresses
         public string ServerManagementBackendAddress { get; set; } = DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS; // argument 로 설정될 값
         public string UserSessionBackendAddress { get; set; } = "http://localhost:5000";
 
@@ -34,7 +36,7 @@ namespace K2svc
         {
             // ArgumentException ; Build() 를 중복으로 사용한 경우
             Data.Add($"{SECTION_NAME}:{nameof(ServerId)}", $"{ServerId}");
-            Data.Add($"{SECTION_NAME}:{nameof(PushBackendAddress)}", $"{PushBackendAddress}");
+            Data.Add($"{SECTION_NAME}:{nameof(BackendListeningAddress)}", $"{BackendListeningAddress}");
 
             Data.Add($"{SECTION_NAME}:{nameof(ServerManagementBackendAddress)}", $"{ServerManagementBackendAddress}");
             Data.Add($"{SECTION_NAME}:{nameof(UserSessionBackendAddress)}", $"{UserSessionBackendAddress}");

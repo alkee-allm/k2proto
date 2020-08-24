@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Collections.Generic;
 
 namespace K2svc
 {
@@ -64,13 +65,22 @@ namespace K2svc
                 {
                     builder
                         .Add(config)
-                        ;
+                    ;
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
+                    var urls = new List<string>();
+                    urls.Add(config.BackendListeningAddress);
+                    if (string.IsNullOrEmpty(config.FrontendListeningAddress) == false
+                        && urls.Contains(config.FrontendListeningAddress) == false) // 같은 주소인 경우 생략
+                    {
+                        urls.Add(config.FrontendListeningAddress);
+                    }
+
                     webBuilder
-                        .UseStartup<Startup>()
-                        ;
+                        .UseKestrel()
+                        .UseUrls(urls.ToArray())
+                        .UseStartup<Startup>();
                 });
         }
     }

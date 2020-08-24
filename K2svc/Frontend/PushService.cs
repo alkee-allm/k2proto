@@ -40,13 +40,13 @@ namespace K2svc.Frontend
                     Force = true, // 항상 성공
                     ServerId = config.ServerId,
                     UserId = userId,
-                    PushBackendAddress = config.PushBackendAddress
+                    PushBackendAddress = config.BackendListeningAddress
                 });
                 logger.LogInformation($"adding user({userId}) to session backend : {result}");
             }
             var user = users.Add(userId, responseStream);
 
-            var newJwt = GenerateJwtToken(userId, config.PushBackendAddress);
+            var newJwt = GenerateJwtToken(userId, config.BackendListeningAddress);
             await responseStream.WriteAsync(new PushResponse
             {
                 Type = PushResponse.Types.PushType.Config,
