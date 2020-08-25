@@ -65,7 +65,7 @@ namespace K2svc
                 {
                     builder
                         .Add(config)
-                    ;
+                        ;
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
@@ -80,7 +80,8 @@ namespace K2svc
                     webBuilder
                         .UseKestrel()
                         .UseUrls(urls.ToArray())
-                        .UseStartup<Startup>();
+                        .UseStartup<Startup>()
+                        ;
                 });
         }
     }

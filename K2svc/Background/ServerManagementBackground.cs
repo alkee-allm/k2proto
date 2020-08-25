@@ -1,4 +1,5 @@
-﻿using K2B;
+﻿using Grpc.Core;
+using K2B;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -12,7 +13,8 @@ namespace K2svc.Background
         , IDisposable
     {
         private readonly ILogger<ServerManagementBackground> logger;
-        private ServiceConfiguration config;
+        private readonly ServiceConfiguration config;
+        private readonly Metadata header;
 
         private Timer timer;
         private int workCount = 0;
@@ -25,10 +27,11 @@ namespace K2svc.Background
         }
         private State currentState = State.REGISTERING;
 
-        public ServerManagementBackground(ILogger<ServerManagementBackground> _logger, ServiceConfiguration _config)
+        public ServerManagementBackground(ILogger<ServerManagementBackground> _logger, ServiceConfiguration _config, Metadata _header)
         {
             logger = _logger;
             config = _config;
+            header = _header;
         }
 
         public void Dispose()
@@ -80,7 +83,7 @@ namespace K2svc.Background
             req.Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "";
             try
             {
-                var rsp = await client.RegisterAsync(req);
+                var rsp = await client.RegisterAsync(req, header);
                 if (rsp.Ok)
                 {
                     config.ServerId = rsp.ServerId;
@@ -120,7 +123,7 @@ namespace K2svc.Background
 
             try
             {
-                var rsp = await client.PingAsync(req);
+                var rsp = await client.PingAsync(req, header);
                 if (rsp.Ok)
                 {
                     return true;

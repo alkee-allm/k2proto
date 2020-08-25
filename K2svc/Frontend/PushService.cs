@@ -17,12 +17,14 @@ namespace K2svc.Frontend
         private readonly ILogger<PushService> logger;
         private readonly Singleton users;
         private readonly ServiceConfiguration config;
+        private readonly Metadata header;
 
-        public PushService(ILogger<PushService> _logger, ServiceConfiguration _config, Singleton _users)
+        public PushService(ILogger<PushService> _logger, ServiceConfiguration _config, Singleton _users, Metadata _header)
         {
             logger = _logger;
             config = _config;
             users = _users;
+            header = _header;
         }
 
         #region rpc
@@ -41,7 +43,7 @@ namespace K2svc.Frontend
                     ServerId = config.ServerId,
                     UserId = userId,
                     PushBackendAddress = config.BackendListeningAddress
-                });
+                }, header);
                 logger.LogInformation($"adding user({userId}) to session backend : {result}");
             }
             var user = users.Add(userId, responseStream);
@@ -64,7 +66,7 @@ namespace K2svc.Frontend
             using (var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress))
             {
                 var client = new K2B.UserSession.UserSessionClient(channel);
-                var result = await client.RemoveUserAsync(new K2B.RemoveUserRequest { ServerId = config.ServerId, UserId = userId });
+                var result = await client.RemoveUserAsync(new K2B.RemoveUserRequest { ServerId = config.ServerId, UserId = userId }, header);
                 logger.LogInformation($"removing user({userId}) to session backend : {result}");
             }
             users.Remove(userId);

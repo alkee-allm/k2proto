@@ -15,18 +15,21 @@ namespace K2svc.Backend
         private readonly ServiceConfiguration config;
         private readonly IHostApplicationLifetime life;
         private readonly Frontend.PushService.Singleton push;
+        private readonly Metadata header;
 
         private static List<Server> servers = new List<Server>(); // server 수가 많지 않고, register/unregister 가 빈번하지 않으므로 별도의 index 는 필요 없을 것
 
         public ServerManagementBackend(ILogger<ServerManagementBackend> _logger,
             ServiceConfiguration _config,
             IHostApplicationLifetime _life, 
-            Frontend.PushService.Singleton _push)
+            Frontend.PushService.Singleton _push,
+            Metadata _header)
         {
             logger = _logger;
             config = _config;
             life = _life;
             push = _push;
+            header = _header;
         }
 
         #region rpc - backend listen
@@ -92,7 +95,7 @@ namespace K2svc.Backend
                 if (string.IsNullOrEmpty(s.PushBackendAddress)) continue;
                 using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(s.PushBackendAddress);
                 var client = new ServerManagement.ServerManagementClient(channel);
-                await client.BroadcastFAsync(request);
+                await client.BroadcastFAsync(request, header);
             }
             return new Null();
         }

@@ -12,22 +12,25 @@ namespace K2svc.Backend
     {
         private readonly ILogger<UserSessionBackend> logger;
         private readonly PushService.Singleton push;
+        private readonly Metadata header;
+
         private static Dictionary<string/*userId*/, string/*pushBackendAddress*/> sessions = new Dictionary<string, string>();
 
-        public UserSessionBackend(ILogger<UserSessionBackend> _logger, PushService.Singleton _push)
+        public UserSessionBackend(ILogger<UserSessionBackend> _logger, PushService.Singleton _push, Metadata _header)
         {
             logger = _logger;
             push = _push;
+            header = _header;
         }
 
         #region helpers - To Frontend listenr
-        public static async Task<string> GetOnlineUserId(ServerCallContext context, string pushBackendAddress)
+        public static async Task<string> GetOnlineUserId(ServerCallContext context, string pushBackendAddress, Metadata header)
         { // TODO: https://github.com/alkee-allm/k2proto/issues/12#issuecomment-645863822
             var userId = context.GetHttpContext().User?.Identity?.Name;
             if (string.IsNullOrEmpty(userId)) throw new ApplicationException($"invalid session state of the user : {context.RequestHeaders}");
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
             var client = new UserSession.UserSessionClient(channel);
-            var response = await client.IsOnlineFAsync(new IsOnlineRequest { UserId = userId });
+            var response = await client.IsOnlineFAsync(new IsOnlineRequest { UserId = userId }, header);
             if (response.Result == IsOnlineResponse.Types.ResultType.Offline) throw new ApplicationException($"offline(not push connected) user : {userId}");
             return userId;
         }
@@ -83,7 +86,7 @@ namespace K2svc.Backend
 
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
             var client = new UserSession.UserSessionClient(channel);
-            return await client.KickUserFAsync(request);
+            return await client.KickUserFAsync(request, header);
         }
 
         public override async Task<PushResponse> Push(PushRequest request, ServerCallContext context)
@@ -100,7 +103,7 @@ namespace K2svc.Backend
             // session 에 기록된 push server 로 메시지 보내기
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
             var client = new UserSession.UserSessionClient(channel);
-            return await client.PushFAsync(request);
+            return await client.PushFAsync(request, header);
         }
         #endregion
 

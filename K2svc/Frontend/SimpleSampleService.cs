@@ -12,18 +12,20 @@ namespace K2svc.Frontend
     {
         private readonly ILogger<SimpleSampleService> logger;
         private readonly ServiceConfiguration config;
+        private readonly Metadata header;
 
-        public SimpleSampleService(ILogger<SimpleSampleService> _logger, ServiceConfiguration _config)
+        public SimpleSampleService(ILogger<SimpleSampleService> _logger, ServiceConfiguration _config, Metadata _header)
         {
             logger = _logger;
             config = _config;
+            header = _header;
         }
 
         #region rpc
         public override async Task<SampleCommandResponse> SampleCommand(SampleCommandRequest request, ServerCallContext context)
         {
             // TODO: 매번 반복해야하는 userId 얻는 코드를 없앨 방법?
-            var userId = await UserSessionBackend.GetOnlineUserId(context, config.BackendListeningAddress);
+            var userId = await UserSessionBackend.GetOnlineUserId(context, config.BackendListeningAddress, header);
 
             return new SampleCommandResponse
             {
@@ -35,7 +37,7 @@ namespace K2svc.Frontend
         public override async Task<SampleInfoResponse> SampleInfo(SampleInfoRequest request, ServerCallContext context)
         {
             // TODO: 매번 반복해야하는 userId 얻는 코드를 없앨 방법?
-            var userId = await UserSessionBackend.GetOnlineUserId(context, config.BackendListeningAddress);
+            var userId = await UserSessionBackend.GetOnlineUserId(context, config.BackendListeningAddress, header);
 
             var rsp = new SampleInfoResponse
             {
