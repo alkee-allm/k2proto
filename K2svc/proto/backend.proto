@@ -58,27 +58,46 @@ message PushRequest {
 // ServerManagement ///////////////////////////////////////////////////////////
 message RegisterRequest { // 서버가 시작되면 실행환경 정보와 함께 요청
 	string version = 1;
+
+	string backendListeningAddress = 11; // key(id) 로도 사용됨. 즉, 각 서버 instance 별로 globally unique 해야할 것
+	string frontendListeningAddress = 12; // null or empty 인 경우 frontend 로 동작하지 않음
+
+	// backend unique service
+	bool hasServerManagement = 21;
+	bool hasUserSession = 22;
+
+	// scalable Services
+	bool hasPush = 31;
+	bool hasInit = 32;
+	bool hasPushSample = 33;
+	bool hasSimpleSample = 34;
 }
 
 message RegisterResponse {
-	bool ok = 1; // false 인 경우 일정 시간 이후에 다시 register(서비스 시작) 시도(standby)
-	string serverId = 2;
+	enum ResultType {
+		OK = 0;
+		INVALID_VERSION = 1;
+		DUPLICATED_BACKEND_LISTENING_ADDRESS = 11;
+		DUPLICATED_FRONTEND_LISTENING_ADDRESS = 12;
+		ALREADY_HAS_SERVER_MANAGEMENT = 21;
+		ALREADY_HAS_USER_SEESION = 22;
 
-	// configuration as backend
-	// enableServerManagement 는 local 설정에 따르기 때문에 필요 없을 것.
-	bool enableUserSession = 12;
+		UNKNOWN_ERROR = 99;
+	}
 
-	// configuration as frontend
-	string pushBackendAddress = 21;
-	string userSessionBackendAddress = 22;
+	ResultType result = 1; // OK 가 아닌 경우 일정 시간 이후에 다시 register(서비스 시작) 시도(standby). 이전 연결 데이터가 남아있기 때문일 수 있음.
+
+	// backend service address
+	string serverManagementAddress = 11; // local 설정을 통해 Register 했기 때문에 굳이 사용될 일은 없지만, 데이터 일관성을 위해 유지
+	string userSessionAddress = 12;
 }
 
 message UnregisterRequest {
-	string serverId = 1;
+	string backendListeningAddress = 1;
 }
 
 message PingRequest {
-	string serverId = 1;
+	string backendListeningAddress = 1;
 
 	// hardware
 	uint32 cpuUsagePercent = 2;
@@ -98,8 +117,7 @@ message PingResponse {
 
 // UserSession ////////////////////////////////////////////////////////////////
 message AddUserRequest {
-	string serverId = 1;
-	string pushBackendAddress = 2;
+	string backendListeningAddress = 1;
 	string userId = 3;
 
 	bool force = 4; // 이미 연결중이라도 강제로 대체하고 Kick을 발생시킬 것.
@@ -117,7 +135,7 @@ message AddUserResponse {
 }
 
 message RemoveUserRequest {
-	string serverId = 1;
+	string backendListeningAddress = 1;
 	string userId = 2;
 }
 

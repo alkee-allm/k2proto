@@ -54,7 +54,7 @@ namespace K2svc.Backend
                         logger.LogWarning($"{request.UserId} already exist." + (request.Force ? " EVEN AFTER KICKED" : ""));
                     return new AddUserResponse { Result = AddUserResponse.Types.ResultType.AlreadyConnected };
                 }
-                sessions.Add(request.UserId, request.PushBackendAddress);
+                sessions.Add(request.UserId, request.BackendListeningAddress);
             }
             return new AddUserResponse
             {

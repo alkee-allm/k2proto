@@ -40,9 +40,8 @@ namespace K2svc.Frontend
                 var result = await client.AddUserAsync(new K2B.AddUserRequest
                 {
                     Force = true, // 항상 성공
-                    ServerId = config.ServerId,
+                    BackendListeningAddress = config.BackendListeningAddress,
                     UserId = userId,
-                    PushBackendAddress = config.BackendListeningAddress
                 }, header);
                 logger.LogInformation($"adding user({userId}) to session backend : {result}");
             }
@@ -66,7 +65,7 @@ namespace K2svc.Frontend
             using (var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress))
             {
                 var client = new K2B.UserSession.UserSessionClient(channel);
-                var result = await client.RemoveUserAsync(new K2B.RemoveUserRequest { ServerId = config.ServerId, UserId = userId }, header);
+                var result = await client.RemoveUserAsync(new K2B.RemoveUserRequest { BackendListeningAddress = config.BackendListeningAddress, UserId = userId }, header);
                 logger.LogInformation($"removing user({userId}) to session backend : {result}");
             }
             users.Remove(userId);
