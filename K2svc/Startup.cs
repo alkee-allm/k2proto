@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Grpc.Core;
+using Grpc.Core.Interceptors;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -6,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
+using System.Threading.Tasks;
 
 namespace K2svc
 {
@@ -22,8 +25,12 @@ namespace K2svc
         public void ConfigureServices(IServiceCollection services)
         {
             // 공통 resource(singleton)
-            services.AddSingleton(config.GetSection(ServiceConfiguration.SECTION_NAME).Get<ServiceConfiguration>()); // 쉽게 접근해 사용할 수 있도록
+            var cfg = config.GetSection(ServiceConfiguration.SECTION_NAME).Get<ServiceConfiguration>();
+            services.AddSingleton(cfg); // 쉽게 접근해 사용할 수 있도록
             services.AddSingleton<Frontend.PushService.Singleton>();
+            var backendHeader = new Grpc.Core.Metadata();
+            backendHeader.Add(nameof(cfg.BackendGroupId), cfg.BackendGroupId); // key 는 소문자로 변환되어 들어간다
+            services.AddSingleton(backendHeader);
 
             // database
             services.AddDbContext<Db.AccountDb>();
@@ -32,7 +39,10 @@ namespace K2svc
             services.AddHostedService<Background.ServerManagementBackground>();
 
             // grpc
-            services.AddGrpc();
+            services.AddGrpc(options =>
+            {
+                options.Interceptors.Add<Filter.BackendValidator>();
+            });
 
             // https://github.com/dotnet/AspNetCore.Docs/blob/master/aspnetcore/grpc/authn-and-authz.md
             // https://github.com/dotnet/AspNetCore.Docs/blob/master/aspnetcore/grpc/authn-and-authz/sample/Ticketer/Startup.cs

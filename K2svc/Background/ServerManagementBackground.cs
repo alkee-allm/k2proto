@@ -1,4 +1,5 @@
-﻿using K2B;
+﻿using Grpc.Core;
+using K2B;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -12,7 +13,8 @@ namespace K2svc.Background
         , IDisposable
     {
         private readonly ILogger<ServerManagementBackground> logger;
-        private ServiceConfiguration config;
+        private readonly ServiceConfiguration config;
+        private readonly Metadata header;
 
         private Timer timer;
         private int workCount = 0;
@@ -25,10 +27,11 @@ namespace K2svc.Background
         }
         private State currentState = State.REGISTERING;
 
-        public ServerManagementBackground(ILogger<ServerManagementBackground> _logger, ServiceConfiguration _config)
+        public ServerManagementBackground(ILogger<ServerManagementBackground> _logger, ServiceConfiguration _config, Metadata _header)
         {
             logger = _logger;
             config = _config;
+            header = _header;
         }
 
         public void Dispose()
@@ -76,18 +79,22 @@ namespace K2svc.Background
         {
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress);
             var client = new ServerManagement.ServerManagementClient(channel);
-            var req = new RegisterRequest();
-            req.Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "";
+            var req = new RegisterRequest
+            {
+                Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
+                BackendListeningAddress = config.BackendListeningAddress,
+                FrontendListeningAddress = config.FrontendListeningAddress,
+                HasServerManagement = config.EnableServerManagementBackend,
+                HasUserSession = config.EnableUserSessionBackend,
+            };
+
             try
             {
-                var rsp = await client.RegisterAsync(req);
-                if (rsp.Ok)
+                var rsp = await client.RegisterAsync(req, header);
+                if (rsp.Result == RegisterResponse.Types.ResultType.Ok)
                 {
-                    config.ServerId = rsp.ServerId;
-                    config.PushBackendAddress = rsp.PushBackendAddress;
-                    config.UserSessionBackendAddress = rsp.UserSessionBackendAddress;
-                    config.EnableUserSessionBackend = rsp.EnableUserSession;
-                    //config.EnableServerManagementBackend 는 시작환경(args)과 함께 고정
+                    config.ServerManagementBackendAddress = rsp.ServerManagementAddress; // 시작환경에 의해 고정되기때문에 의미 없을 것.
+                    config.UserSessionBackendAddress = rsp.UserSessionAddress;
 
                     config.Registered = true;
                     return true;
@@ -106,21 +113,20 @@ namespace K2svc.Background
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress);
             var client = new ServerManagement.ServerManagementClient(channel);
 
-            // TODO: fill this values
             var req = new PingRequest
             {
-                ServerId = config.ServerId,
+                BackendListeningAddress = config.BackendListeningAddress,
 
+                // TODO: fill this statistics values
                 CpuUsagePercent = 0,
                 FreeHddBytes = 0,
                 MemoryUsage = 0,
-
                 Population = 0,
             };
 
             try
             {
-                var rsp = await client.PingAsync(req);
+                var rsp = await client.PingAsync(req, header);
                 if (rsp.Ok)
                 {
                     return true;

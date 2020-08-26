@@ -13,11 +13,13 @@ namespace K2svc.Frontend
     {
         private readonly ILogger<PushSampleService> logger;
         private readonly ServiceConfiguration config;
+        private readonly Metadata header;
 
-        public PushSampleService(ILogger<PushSampleService> _logger, ServiceConfiguration _config)
+        public PushSampleService(ILogger<PushSampleService> _logger, ServiceConfiguration _config, Metadata _header)
         {
             logger = _logger;
             config = _config;
+            header = _header;
         }
 
         #region rpc
@@ -32,7 +34,7 @@ namespace K2svc.Frontend
                     Type = K2B.PushRequest.Types.PushResponse.Types.PushType.Message,
                     Message = request.Message
                 }
-            });
+            }, header);
             return new Null();
         }
 
@@ -53,7 +55,7 @@ namespace K2svc.Frontend
                     Message = request.Message,
                     Extra = userId
                 }
-            });
+            }, header);
             logger.LogInformation($"kick result = {result.Result}");
 
             return new Null();
@@ -80,7 +82,7 @@ namespace K2svc.Frontend
                     Message = userId,
                     Extra = "HELLO"
                 }
-            });
+            }, header);
             return new Null();
         }
 
@@ -89,7 +91,7 @@ namespace K2svc.Frontend
             // UserSessionService 로 보내기
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress);
             var client = new K2B.UserSession.UserSessionClient(channel);
-            var result = await client.KickUserAsync(new K2B.KickUserRequest { UserId = request.Target });
+            var result = await client.KickUserAsync(new K2B.KickUserRequest { UserId = request.Target }, header);
             logger.LogInformation($"kick result = {result.Result}");
 
             return new Null();

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Collections.Generic;
 
 namespace K2svc
 {
@@ -54,7 +55,6 @@ namespace K2svc
             return 0;
         }
 
-
         // Additional configuration is required to successfully run gRPC on macOS.
         // For instructions on how to configure Kestrel and gRPC clients on macOS, visit https://go.microsoft.com/fwlink/?linkid=2099682
         public static IHostBuilder CreateHostBuilder(string[] args, ServiceConfiguration config)
@@ -68,7 +68,17 @@ namespace K2svc
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
+                    var urls = new List<string>();
+                    urls.Add(config.BackendListeningAddress); // 반드시 존재해야..
+                    if (string.IsNullOrEmpty(config.FrontendListeningAddress) == false
+                        && urls.Contains(config.FrontendListeningAddress) == false) // 같은 주소인 경우 생략
+                    {
+                        urls.Add(config.FrontendListeningAddress);
+                    }
+
                     webBuilder
+                        .UseKestrel()
+                        .UseUrls(urls.ToArray()) // fornt-backend 구분은 Grpc option(interceptor) 에서.
                         .UseStartup<Startup>()
                         ;
                 });
