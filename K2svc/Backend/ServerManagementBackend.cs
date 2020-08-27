@@ -113,6 +113,7 @@ namespace K2svc.Backend
 
             // response
             rsp.Result = RegisterResponse.Types.ResultType.Ok;
+            rsp.BackendListeningAddress = server.BackendListeningAddress;
             rsp.ServerManagementAddress = serverManagementBackendAddress;
             rsp.UserSessionAddress = userSessionBackendAddress;
             return Task.FromResult(rsp);

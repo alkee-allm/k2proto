@@ -43,7 +43,7 @@ namespace K2svc.Frontend
                     BackendListeningAddress = config.BackendListeningAddress,
                     UserId = userId,
                 }, header);
-                logger.LogInformation($"adding user({userId}) to session backend : {result}");
+                logger.LogInformation($"adding user({userId}) {result.Result} to session backend : {config.BackendListeningAddress}");
             }
             var user = users.Add(userId, responseStream);
 

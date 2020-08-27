@@ -58,7 +58,11 @@ namespace K2svc.Background
             if (workCount > 0)
             {
                 logger.LogWarning($"ServerManagement timer is busy({workCount})");
-                Interlocked.Increment(ref workCount);
+                var cnt = Interlocked.Increment(ref workCount);
+                if (cnt == 1) // timer 끝나자마자 increament 실행된 경우.
+                {
+                    Interlocked.Exchange(ref workCount, 0);
+                }
                 return;
             }
 
