@@ -77,15 +77,26 @@ namespace K2svc.Background
 
         private async Task<bool> Register()
         {
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress);
+            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
             var client = new ServerManagement.ServerManagementClient(channel);
             var req = new RegisterRequest
             {
                 Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
-                BackendListeningAddress = config.BackendListeningAddress,
-                FrontendListeningAddress = config.FrontendListeningAddress,
-                HasServerManagement = config.EnableServerManagementBackend,
+                ServerId = config.ServerId,
+                ListeningPort = config.ListeningPort,
+                PublicIp = Util.GetPublicIp(), // backend 전용인 경우 null
+                ServiceScheme = config.ServiceScheme,
+
+                HasServerManagement = config.ServerManagementBackendAddress == null,
+
+                // backend unique services
                 HasUserSession = config.EnableUserSessionBackend,
+
+                // frontend services
+                HasPush = config.EnablePushSampleService,
+                HasInit = config.EnableInitService,
+                HasPushSample = config.EnablePushSampleService,
+                HasSimpleSample = config.EnableSimpleSampleService,
             };
 
             try
@@ -96,6 +107,7 @@ namespace K2svc.Background
                     config.ServerManagementBackendAddress = rsp.ServerManagementAddress; // 시작환경에 의해 고정되기때문에 의미 없을 것.
                     config.UserSessionBackendAddress = rsp.UserSessionAddress;
 
+                    config.BackendListeningAddress = rsp.BackendListeningAddress; // Register 에 의해 private IP 가 결정되기때문에 이 이후부터 사용 가능.
                     config.Registered = true;
                     return true;
                 }
@@ -110,17 +122,18 @@ namespace K2svc.Background
 
         private async Task<bool> Ping()
         {
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress);
+            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
             var client = new ServerManagement.ServerManagementClient(channel);
 
             var req = new PingRequest
             {
-                BackendListeningAddress = config.BackendListeningAddress,
+                ServerId = config.ServerId,
 
                 // TODO: fill this statistics values
                 CpuUsagePercent = 0,
                 FreeHddBytes = 0,
                 MemoryUsage = 0,
+
                 Population = 0,
             };
 

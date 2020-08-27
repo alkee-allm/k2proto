@@ -1,6 +1,4 @@
-﻿using Grpc.Core;
-using Grpc.Core.Interceptors;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -8,7 +6,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
-using System.Threading.Tasks;
 
 namespace K2svc
 {
@@ -82,8 +79,9 @@ namespace K2svc
             // service blocker
             app.Use(async (context, next) =>
             { // https://docs.microsoft.com/ko-kr/aspnet/core/fundamentals/middleware/write?view=aspnetcore-3.1#middleware-class
-                if (cfg.Registered == false && cfg.EnableServerManagementBackend == false)
-                { // 아직 register 되지 않은 서버는 사용할 수 없음
+                if (string.IsNullOrEmpty(cfg.ServerManagementBackendAddress) == false // not ServerManagementService
+                    && cfg.Registered == false) // 아직 register 되지 않은 서버
+                {
                     return;
                 }
                 await next();
