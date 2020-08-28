@@ -12,8 +12,9 @@
 | push | 서버에서 클라이언트로 전달하는 이벤트 |
 | server management service / 관리서버 | 서버들을 관리하는 중앙집중형 backend 서비스 |
 | session service / 세션서버 | push channel 을 통해 연결되어있는 유저들을 관리하는 중앙집중형 backend 서비스 |
-| in-game | [unreal dedicated server](https://docs.unrealengine.com/ko/Gameplay/Networking/HowTo/DedicatedServers/index.html) 에 의해 동작하는 직접적인 게임 플레이(stage 내) 관련 요소 |
-| out-game | stage 게임 플레이 이외의 요소. 로그인, 로비, 채팅, 상점 등등 |
+| game session | 실제 멀티 게임 플레이가 이루어지는 하나의 방 / 스테이지 |
+| in-game | [unreal dedicated server](https://docs.unrealengine.com/ko/Gameplay/Networking/HowTo/DedicatedServers/index.html) 에 의해 동작하는 직접적인 게임 플레이(game session 내) 관련 요소 |
+| out-game | game session 내 게임 플레이 이외의 요소. 로그인, 로비, 채팅, 상점 등등 |
 
 
 ### CONCEPT
@@ -42,14 +43,14 @@
  1. 서비스 시작 전 [configuration](./ServiceConfiguration.cs) ; [환경변수(environment variable](https://en.wikipedia.org/wiki/Environment_variable), [설정파일](./appsettings.json) 및 실행인수(commandline argument) 로 서비스 시작 설정 구성 ; https://github.com/alkee-allm/k2proto/blob/3300dbab79e27ed48dee4f4718fa1dd6964f27e9/K2svc/Program.cs#L41-L56
  
  2. [Startup](./Startup.cs).`ConfigureService`
-   * 공용자원(singleton) 추가
-   * 각종 서비스(background, database, grpc 등) 추가 ;[서비스 수명](https://docs.microsoft.com/ko-kr/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-3.1#service-lifetimes) 참고
-   * 정책설정 ; backend grpc(`BackendValidator`), 클라이언트 인증
+    * 공용자원(singleton) 추가
+    * 각종 서비스(background, database, grpc 등) 추가 ;[서비스 수명](https://docs.microsoft.com/ko-kr/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-3.1#service-lifetimes) 참고
+    * 정책설정 ; backend grpc(`BackendValidator`), 클라이언트 인증
  
  3. [Startup](./Startup.cs).`Configure` ; 추가된 service 들과 연결(client) 사이의 middleware 설정
-   * 관리서버에 등록되기 전에는 서비스를 사용할 수 없도록(service blocker)
-   * 각종 서비스들을 사용할 수 있도록
-   * grpc 의 서비스 연결
+    * 관리서버에 등록되기 전에는 서비스를 사용할 수 없도록(service blocker)
+    * 각종 서비스들을 사용할 수 있도록
+    * grpc 의 서비스 연결
    
  4. [ServerManagementBackground](./Background/ServerManagementBackground.cs)에서 서비스 시작을 관리서버에 등록(Register)하고, 관리서버로부터 필요한 설정들을 얻어와 저장 ; https://github.com/alkee-allm/k2proto/blob/master/K2svc/Background/ServerManagementBackground.cs#L108-L115
  
@@ -57,7 +58,7 @@
 
  6. client 는 push 용 연결(stream)을 만들고 JWT 갱신 ; https://github.com/alkee-allm/k2proto/blob/3300dbab79e27ed48dee4f4718fa1dd6964f27e9/K2svc/Frontend/PushService.cs#L31-L73
 
- 7. 이후 client 는 필요한 다양한 요청을 시작 ; 각 서비스의 [work flow](../README.md#Design) 참고.
+ 7. 이후 client 는 필요한 다양한 요청을 시작 ; 각 서비스의 [work flow](../README.md#design--process-flow) 참고.
 
 
 ### EXAMPLE SCENARIO
@@ -68,7 +69,7 @@
 
  1. 서비스를 디자인 하고 공용(client-server) [`.proto` 파일](../proto/sample.proto)을 추가 또는 수정 후 빌드(message 및 stub class 를 사용할 수 있는 상태로 만듦)
  
- 2. `Frontend` 경로에 stub service class 를 추가 ; 이 클래스는 AuthorizeAttribute 를 가지고 있어(인증 필요 지정)야 하며, stub base class 를 상속받아야 한다.
+ 2. `Frontend` 경로에 stub service class 를 추가 ; 이 클래스는 [AuthorizeAttribute](https://docs.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.authorization.authorizeattribute?view=aspnetcore-3.1)를 가지고 있어(인증 필요 지정)야 하며, stub base class 로부터 상속받아 사용해야 한다.
 ```csharp
 [Authorize]
 public class MyService : MyService.MyServiceBase
@@ -76,7 +77,7 @@ public class MyService : MyService.MyServiceBase
 }
 ```
 
- 3. `[Startup](./Startup.cs).Configure` endpoint 에 해당 service 를 추가한다.
+ 3. [Startup](./Startup.cs)`.Configure` endpoint 에 해당 service 를 추가한다.
 ```csharp
 public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime life, ServiceConfiguration cfg)
 {
@@ -111,5 +112,5 @@ public class MyService : MyService.MyServiceBase
  }
  ```
  
- * 주의 ; **이 서비스 class 는 매 요청마다 생성**되므로, 공용 자원이 필요한 경우 생성자에서 참조를 얻어(Dependency injection) 사용해야한다.
+ * **주의 ; 이 서비스 class 는 매 요청마다 생성**되므로, 공용 자원이 필요한 경우 생성자에서 참조를 얻어(Dependency injection) 사용해야한다.
  
