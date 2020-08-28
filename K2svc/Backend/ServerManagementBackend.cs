@@ -14,7 +14,6 @@ namespace K2svc.Backend
     public class ServerManagementBackend : ServerManagement.ServerManagementBase
     {
         private readonly ILogger<ServerManagementBackend> logger;
-        private readonly ServiceConfiguration config;
         private readonly IHostApplicationLifetime life;
         private readonly Frontend.PushService.Singleton push;
         private readonly Metadata header;
@@ -24,27 +23,18 @@ namespace K2svc.Backend
         private static string userSessionBackendAddress = null;
 
         public ServerManagementBackend(ILogger<ServerManagementBackend> _logger,
-            ServiceConfiguration _config,
             IHostApplicationLifetime _life,
             Frontend.PushService.Singleton _push,
             Metadata _header)
         {
+            // ** ServiceConfiguration 사용 금지 **
+            //   ServerManagement 가 다른 서비스들과 함께 서비스 될 수 있기 때문에 ServiceConfiguration 을 사용하게되면
+            //   단독으로 사용되는 경우와 설정이 달라지는 상황(singleton)에 대한 디버깅이나 구현이 어렵다.
+
             logger = _logger;
-            config = _config;
             life = _life;
             push = _push;
             header = _header;
-        }
-
-        private static string GetPeerIp(ServerCallContext context)
-        {
-            const char SEPARATOR = ':';
-            var source = context.Peer; // "ipv4:ip:port" or "ipv6:[ip]:port" ; ipv6 url 주소에서는 [,] 가 쓰임. https://tools.ietf.org/html/rfc2732
-            var sep1 = source.IndexOf(SEPARATOR);
-            var sep2 = source.LastIndexOf(SEPARATOR);
-            //var version = source.Substring(0, sep1);
-            var ip = source.Substring(sep1 + 1, sep2 - sep1 - 1);
-            return ip;
         }
 
         #region rpc - backend listen
@@ -56,7 +46,7 @@ namespace K2svc.Backend
                 ListeningPort = request.ListeningPort,
                 PublicIpAddress = request.PublicIp,
                 ServiceScheme = request.ServiceScheme,
-                PrivateIpAddress = GetPeerIp(context),
+                PrivateIpAddress = Util.GetGrpcPeerIp(context),
                 HasServerManagement = request.HasServerManagement,
                 HasUserSession = request.HasUserSession,
 
@@ -81,6 +71,7 @@ namespace K2svc.Backend
 
             lock (servers)
             {
+                // 서비스 주소는 netwrok 내에서 중복되지 않아야 함
                 if (servers.Any((s) => s.BackendListeningAddress == server.BackendListeningAddress))
                 {
                     rsp.Result = RegisterResponse.Types.ResultType.DuplicatedBackendListeningAddress;
@@ -91,7 +82,8 @@ namespace K2svc.Backend
                     rsp.Result = RegisterResponse.Types.ResultType.DuplicatedFrontendListeningAddress;
                     return Task.FromResult(rsp);
                 }
-                // unique backend services
+
+                // unique backend services 는 network 내에서 유일해야 함
                 if (request.HasServerManagement && servers.Any((s) => s.HasServerManagement))
                 {
                     rsp.Result = RegisterResponse.Types.ResultType.AlreadyHasServerManagement;
@@ -123,8 +115,19 @@ namespace K2svc.Backend
         {
             lock (servers)
             {
-                var removed = servers.RemoveAll((s) => (request.ServerId == s.ServerId));
-                if (removed != 1) logger.LogWarning($"{removed} server removed by serverId: {request.ServerId}");
+                var i = servers.FindIndex((s) => (request.ServerId == s.ServerId));
+                if (i < 0)
+                {
+                    logger.LogWarning($"the server is not registered. serverId: {request.ServerId}");
+                    return Task.FromResult(new Null());
+                }
+                var server = servers[i];
+
+                // backend unique server 인 경우 상태 정보 업데이트
+                if (server.HasServerManagement) serverManagementBackendAddress = null;
+                if (server.HasUserSession) userSessionBackendAddress = null;
+
+                servers.RemoveAt(i);
             }
 
             return Task.FromResult(new Null());
@@ -206,27 +209,23 @@ namespace K2svc.Backend
             public int ListeningPort { get; set; }
             public string PublicIpAddress { get; set; } // null 인 경우 backend 전용
             public string PrivateIpAddress { get; set; }
-            internal string BackendListeningAddress => $"{ServiceScheme}://{PrivateIpAddress}:{ListeningPort}";
-            internal string FrontendListeningAddress => string.IsNullOrEmpty(PublicIpAddress) ? null : $"{ServiceScheme}://{PublicIpAddress}:{ListeningPort}";
-
-            // services
+            // backend services
             public bool HasServerManagement { get; set; }
             public bool HasUserSession { get; set; }
 
+            // frontend services
             public bool HasPush { get; set; }
             public bool HasInit { get; set; }
             public bool HasPushSample { get; set; }
             public bool HasSimpleSample { get; set; }
             #endregion
 
+            internal string BackendListeningAddress => $"{ServiceScheme}://{PrivateIpAddress}:{ListeningPort}";
+            internal string FrontendListeningAddress => string.IsNullOrEmpty(PublicIpAddress) ? null : $"{ServiceScheme}://{PublicIpAddress}:{ListeningPort}";
+
             public bool Equals([AllowNull] Server other)
             { // List.Remove 에 사용하기 위해 IEquatable
                 return ServerId == other.ServerId;
-            }
-
-            public static string GetServerAddress(string scheme, string ipAddress, int port)
-            {
-                return $"{scheme}://{ipAddress}:{port}";
             }
         }
     }

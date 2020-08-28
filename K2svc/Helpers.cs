@@ -74,5 +74,16 @@ namespace K2svc
                 return null;
             }
         }
+
+        public static string GetGrpcPeerIp(Grpc.Core.ServerCallContext context)
+        {
+            const char SEPARATOR = ':';
+            var source = context.Peer; // "ipv4:ip:port" or "ipv6:[ip]:port" ; ipv6 url 주소에서는 [,] 가 쓰임. https://tools.ietf.org/html/rfc2732
+            var sep1 = source.IndexOf(SEPARATOR);
+            var sep2 = source.LastIndexOf(SEPARATOR);
+            //var version = source.Substring(0, sep1);
+            var ip = source.Substring(sep1 + 1, sep2 - sep1 - 1);
+            return ip;
+        }
     }
 }
