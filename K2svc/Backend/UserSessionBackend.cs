@@ -2,7 +2,6 @@
 using K2B;
 using K2svc.Frontend;
 using Microsoft.Extensions.Logging;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -22,19 +21,6 @@ namespace K2svc.Backend
             push = _push;
             header = _header;
         }
-
-        #region helpers - To Frontend listenr
-        public static async Task<string> GetOnlineUserId(ServerCallContext context, string pushBackendAddress, Metadata header)
-        { // TODO: https://github.com/alkee-allm/k2proto/issues/12#issuecomment-645863822
-            var userId = context.GetHttpContext().User?.Identity?.Name;
-            if (string.IsNullOrEmpty(userId)) throw new ApplicationException($"invalid session state of the user : {context.RequestHeaders}");
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
-            var client = new UserSession.UserSessionClient(channel);
-            var response = await client.IsOnlineFAsync(new IsOnlineRequest { UserId = userId }, header);
-            if (response.Result == IsOnlineResponse.Types.ResultType.Offline) throw new ApplicationException($"offline(not push connected) user : {userId}");
-            return userId;
-        }
-        #endregion
 
         #region rpc - backend listen
         public override async Task<AddUserResponse> AddUser(AddUserRequest request, ServerCallContext context)

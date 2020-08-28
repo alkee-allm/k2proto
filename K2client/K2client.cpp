@@ -82,7 +82,19 @@ void CommandInfo(K2::SimpleSample::Stub& stub, const string& filter)
 	dumpStatus(status);
 }
 
-int main() {
+int main(int argc, char** argv)
+{
+	std::string CHANNEL_URL("localhost:9060");
+	if (argc > 1)
+	{
+		CHANNEL_URL = argv[1];
+	}
+	else
+	{
+		cout << "usage) " << argv[0] << " [server ip:port]" << endl;
+		cout << "       using default server ip and port" << endl;
+	}
+	cout << "target channel : " << CHANNEL_URL << endl;
 
 	// id - password 준비
 	string id;
@@ -104,8 +116,6 @@ int main() {
 	//option.pem_root_certs = read("localhost.pem"); // 서버의 인증서 필요(certmgr 또는 dotnet dev-cert 명령 이용해 추출)
 	//auto creds = grpc::SslCredentials(option);
 	auto creds = grpc::InsecureChannelCredentials();
-
-	string CHANNEL_URL("localhost:5000");
 	auto initChannel = grpc::CreateChannel(CHANNEL_URL, creds);
 
 	// grpc::ClientContext 는 재사용해 사용될 수 없음. https://github.com/grpc/grpc/issues/486

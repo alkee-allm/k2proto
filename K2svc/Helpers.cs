@@ -7,7 +7,10 @@ namespace K2svc
 {
     public static class DefaultValues
     {
-        public static readonly string SERVER_MANAGEMENT_BACKEND_ADDRESS = "http://localhost:5000";
+        public static readonly string APP_SETTINGS_FILENAME = "appsettings.json";
+        public static readonly string SERVICE_IP = "localhost";
+        public static readonly int LISTENING_PORT = 9060;
+        public static readonly string SERVER_MANAGEMENT_BACKEND_ADDRESS = $"http://{SERVICE_IP}:{LISTENING_PORT}";
         public static readonly int SERVER_REGISTER_DELAY_MILLISECONDS = 2000;
         public static readonly double SERVER_MANAGEMENT_PING_INTERVAL_SECONDS = 1.0;
     }
@@ -45,6 +48,42 @@ namespace K2svc
         void IDisposable.Dispose()
         {
             work();
+        }
+    }
+
+    public static class Util
+    {
+        public static bool HasHttpScheme(string uri)
+        {
+            if (Uri.TryCreate(uri, UriKind.Absolute, out Uri x)
+                && (x.Scheme == Uri.UriSchemeHttp || x.Scheme == Uri.UriSchemeHttps))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public static string GetPublicIp()
+        {
+            try
+            {
+                return new System.Net.WebClient().DownloadString("http://ifconfig.me/ip");
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public static string GetGrpcPeerIp(Grpc.Core.ServerCallContext context)
+        {
+            const char SEPARATOR = ':';
+            var source = context.Peer; // "ipv4:ip:port" or "ipv6:[ip]:port" ; ipv6 url 주소에서는 [,] 가 쓰임. https://tools.ietf.org/html/rfc2732
+            var sep1 = source.IndexOf(SEPARATOR);
+            var sep2 = source.LastIndexOf(SEPARATOR);
+            //var version = source.Substring(0, sep1);
+            var ip = source.Substring(sep1 + 1, sep2 - sep1 - 1);
+            return ip;
         }
     }
 }
