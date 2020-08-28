@@ -3,8 +3,6 @@ using K2;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using Grpc.Core;
-using System;
-using System.Security.Claims;
 
 namespace K2svc.Frontend
 {
@@ -25,6 +23,7 @@ namespace K2svc.Frontend
         #region rpc
         public override async Task<Null> Broadacast(BroadacastRequest request, ServerCallContext context)
         {
+            // 연결된 모든 서버로 메시지를 전송하고 이 서버들에 연결된 모든 유저로 메시지를 전달하는 예시
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress);
             var client = new K2B.ServerManagement.ServerManagementClient(channel);
             await client.BroadcastAsync(new K2B.PushRequest
@@ -40,10 +39,10 @@ namespace K2svc.Frontend
 
         public override async Task<Null> Message(MessageRequest request, ServerCallContext context)
         {
-            var userId = context.GetHttpContext().User.Identity.Name ?? "";
-            if (string.IsNullOrEmpty(userId)) throw new ApplicationException($"invalid session state of the user : {context.RequestHeaders}");
+            // 요청을 받은 front-end 서버에서 메시지 전달 대상 유저를 찾고 메시지를 전달하는 예시
+            var (userId, pushBackendAddress) = Session.GetUserInfoOrThrow(context);
 
-            // UserSessionService 로 보내기
+            // UserSessionService 를 통해 메시지 보내기
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress);
             var client = new K2B.UserSession.UserSessionClient(channel);
             var result = await client.PushAsync(new K2B.PushRequest
@@ -63,14 +62,12 @@ namespace K2svc.Frontend
 
         public override async Task<Null> Hello(Null request, ServerCallContext context)
         {
-            var userId = context.GetHttpContext().User.Identity.Name ?? "";
-            var pushBackendAddress = context.GetHttpContext().User.FindFirst(ClaimTypes.System)?.Value ?? "";
-            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(pushBackendAddress))
-            {
-                logger.LogWarning($"invalid user information : {userId} / {pushBackendAddress}");
-                return new Null();
-            }
+            // 요청을 받은 front-end 서버와 실제 연결되어있는 push-service 가 다른 서버일 수 있다.
+            //   따라서, 응답처리가 별도의 push-service 를 통해 이루어져야 하는 경우에 대한 예시
 
+            var (userId, pushBackendAddress) = Session.GetUserInfoOrThrow(context);
+
+            // direct(해당 user가 연결되어있는 push 서버)로 메시지 보내기
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
             var client = new K2B.UserSession.UserSessionClient(channel);
             var result = await client.PushAsync(new K2B.PushRequest

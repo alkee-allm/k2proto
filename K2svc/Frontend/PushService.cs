@@ -88,11 +88,12 @@ namespace K2svc.Frontend
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-
+        /// <summary>
+        ///     이 서버(PUSH)에 연결된 클라이언트들에 대한 메시지 전달자
+        /// </summary>
         public class Singleton // 좋은 naming 없을까..
         {
             private Dictionary<string, User> users = new Dictionary<string, User>();
-            public bool IsAvailable { get { lock (users) return users.Count > 0; } }
             public async Task<bool> SendMessage(string targetUserId, PushResponse message)
             {
                 User user;
@@ -117,7 +118,7 @@ namespace K2svc.Frontend
                 return targets.Count;
             }
 
-            public bool Disconnect(string userId)
+            internal bool Disconnect(string userId)
             {
                 // available 만 설정해주면, PushBegin 의 async loop 에서 연결종료 및 remove 가 동작할 것.
 
@@ -132,12 +133,12 @@ namespace K2svc.Frontend
                 return false;
             }
 
-            public bool Exists(string userId)
+            internal bool Exists(string userId)
             {
                 return users.ContainsKey(userId);
             }
 
-            public User Add(string userId, IServerStreamWriter<PushResponse> stream)
+            internal User Add(string userId, IServerStreamWriter<PushResponse> stream)
             {
                 var user = new User
                 {
@@ -149,7 +150,7 @@ namespace K2svc.Frontend
                 return user;
             }
 
-            public void Remove(string user)
+            internal void Remove(string user)
             {
                 lock (users) users.Remove(user);
             }

@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 
 namespace K2svc.Backend
 {
+    // backend 를 알 수 없는 상황에서, 하나의 user 에 대한 message 및 정보 담당.
+    //   전체 user 에 대한 동작은 ServerManagementBackend 이용해아할 것.
     public class UserSessionBackend : UserSession.UserSessionBase
     {
         private readonly ILogger<UserSessionBackend> logger;

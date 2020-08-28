@@ -1,4 +1,4 @@
-==== project history by alkee =====
+project history by alkee
 
 # 시작
 
@@ -619,6 +619,4 @@ local 개발 서버의 인증서 추출 방법.
 
 
 
-
-
-
+이후 진행 내용에 대한 기록은 [github issue](https://github.com/alkee-allm/k2proto/issues?q=is%3Aissue)에 지속적으로 기록.

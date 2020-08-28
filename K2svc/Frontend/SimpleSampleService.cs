@@ -23,8 +23,10 @@ namespace K2svc.Frontend
         #region rpc
         public override async Task<SampleCommandResponse> SampleCommand(SampleCommandRequest request, ServerCallContext context)
         {
+            // 보내온 요청(request)에 대한 단순한 응답(response) 예시
+
             // TODO: 매번 반복해야하는 userId 얻는 코드를 없앨 방법?
-            var userId = await Session.GetOnlineUserId(context, header);
+            var (userId, pushBackendAddress) = await Session.GetOnlineUserInfoOrThrow(context, header);
 
             return new SampleCommandResponse
             {
@@ -35,8 +37,9 @@ namespace K2svc.Frontend
 
         public override async Task<SampleInfoResponse> SampleInfo(SampleInfoRequest request, ServerCallContext context)
         {
-            // TODO: 매번 반복해야하는 userId 얻는 코드를 없앨 방법?
-            var userId = await Session.GetOnlineUserId(context, header);
+            // 보내온 요청(request)에 대한 단순한 응답(response) 예시 ; nested message 사용 예시
+
+            var (userId, pushBackendAddress) = await Session.GetOnlineUserInfoOrThrow(context, header);
 
             var rsp = new SampleInfoResponse
             {
