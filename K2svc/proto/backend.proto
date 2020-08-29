@@ -36,6 +36,31 @@ service UserSession {
 	rpc IsOnlineF (IsOnlineRequest) returns (IsOnlineResponse);
 }
 
+service ServerManager {
+	rpc Register (RegisterRequest) returns (RegisterResponse);
+	rpc Unregister (UnregisterRequest) returns (Null); // 정상적인 종료
+	rpc Ping (PingRequest) returns (PingResponse);
+	rpc Broadcast (PushRequest) returns (Null);
+}
+service ServerHost { // from ServerManager 
+	rpc Stop (Null) returns (Null); // 종료 명령
+	rpc Broadcast (PushRequest) returns (Null);
+}
+
+service SessionManager {
+	rpc AddUser (AddUserRequest) returns (AddUserResponse);
+	rpc RemoveUser (RemoveUserRequest) returns (RemoveUserResponse);
+	rpc RemoveUsers (RemoveUsersRequest) returns (RemoveUsersResponse);
+	rpc KickUser (KickUserRequest) returns (KickUserResponse);
+	rpc Push (PushRequest) returns (PushResponse);
+}
+service SessionHost { // from SessionManager
+	rpc KickUser (KickUserRequest) returns (KickUserResponse);
+	rpc Push (PushRequest) returns (PushResponse);
+	rpc IsOnline (IsOnlineRequest) returns (IsOnlineResponse);
+}
+
+
 // Messages
 message PushRequest {
 	message PushResponse { // K2.PushResponse

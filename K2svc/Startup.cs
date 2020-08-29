@@ -24,7 +24,6 @@ namespace K2svc
             // 공통 resource(singleton)
             var cfg = config.GetSection(ServiceConfiguration.SECTION_NAME).Get<ServiceConfiguration>();
             services.AddSingleton(cfg); // 쉽게 접근해 사용할 수 있도록
-            services.AddSingleton<Frontend.PushService.Singleton>();
             var backendHeader = new Grpc.Core.Metadata();
             backendHeader.Add(nameof(cfg.BackendGroupId), cfg.BackendGroupId); // key 는 소문자로 변환되어 들어간다
             services.AddSingleton(backendHeader);
@@ -97,14 +96,15 @@ namespace K2svc
             {
                 // TODO: reflection 으로 endpoints.MapGrpcService 을 자동화
                 // backend services
-                endpoints.MapGrpcService<Backend.ServerManagementBackend>();
-                endpoints.MapGrpcService<Backend.UserSessionBackend>();
+                if (cfg.ServerManagementBackendAddress == null) endpoints.MapGrpcService<Backend.ServerManagementBackend>();
+                if (cfg.EnableUserSessionBackend) { endpoints.MapGrpcService<Backend.SessionManagerBackend>(); }
+                endpoints.MapGrpcService<Backend.SessionHostBackend>();
 
                 // frontend services
-                endpoints.MapGrpcService<Frontend.InitService>();
-                endpoints.MapGrpcService<Frontend.PushService>();
-                endpoints.MapGrpcService<Frontend.PushSampleService>();
-                endpoints.MapGrpcService<Frontend.SimpleSampleService>();
+                if (cfg.EnableInitService) endpoints.MapGrpcService<Frontend.InitService>();
+                if (cfg.EnablePushService) endpoints.MapGrpcService<Frontend.PushService>();
+                if (cfg.EnablePushSampleService) endpoints.MapGrpcService<Frontend.PushSampleService>();
+                if (cfg.EnableSimpleSampleService) endpoints.MapGrpcService<Frontend.SimpleSampleService>();
 
                 endpoints.MapGet("/", async context =>
                 {

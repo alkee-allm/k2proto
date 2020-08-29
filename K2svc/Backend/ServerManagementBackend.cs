@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Grpc.Core;
 using K2B;
+using K2svc.Frontend;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,6 @@ namespace K2svc.Backend
     {
         private readonly ILogger<ServerManagementBackend> logger;
         private readonly IHostApplicationLifetime life;
-        private readonly Frontend.PushService.Singleton push;
         private readonly Metadata header;
 
         private static List<Server> servers = new List<Server>(); // server 수가 많지 않고, register/unregister 가 빈번하지 않으므로 별도의 index 는 필요 없을 것
@@ -24,7 +24,6 @@ namespace K2svc.Backend
 
         public ServerManagementBackend(ILogger<ServerManagementBackend> _logger,
             IHostApplicationLifetime _life,
-            Frontend.PushService.Singleton _push,
             Metadata _header)
         {
             // ** ServiceConfiguration 사용 금지 **
@@ -33,7 +32,6 @@ namespace K2svc.Backend
 
             logger = _logger;
             life = _life;
-            push = _push;
             header = _header;
         }
 
@@ -185,9 +183,8 @@ namespace K2svc.Backend
 
         public override async Task<Null> BroadcastF(PushRequest request, ServerCallContext context)
         {
-            var message = request.ToResponse();
-            var count = await push.SendMessageToAll(message);
-            logger.LogInformation($"{count} broadcasted message : ", message.Message);
+            var count = await PushService.Pusher.SendMessageToAll(request);
+            logger.LogInformation($"{count} broadcasted message : ", request.PushMessage);
             return new Null();
         }
         #endregion

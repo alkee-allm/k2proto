@@ -1,30 +1,24 @@
 ﻿using Grpc.Core;
 using K2B;
-using K2svc.Frontend;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace K2svc.Backend
 {
-    // backend 를 알 수 없는 상황에서, 하나의 user 에 대한 message 및 정보 담당.
-    //   전체 user 에 대한 동작은 ServerManagementBackend 이용해아할 것.
-    public class UserSessionBackend : UserSession.UserSessionBase
+    public class SessionManagerBackend : SessionManager.SessionManagerBase
     {
-        private readonly ILogger<UserSessionBackend> logger;
-        private readonly PushService.Singleton push;
+        private readonly ILogger<SessionManagerBackend> logger;
         private readonly Metadata header;
 
         private static Dictionary<string/*userId*/, string/*pushBackendAddress*/> sessions = new Dictionary<string, string>();
 
-        public UserSessionBackend(ILogger<UserSessionBackend> _logger, PushService.Singleton _push, Metadata _header)
+        public SessionManagerBackend(ILogger<SessionManagerBackend> _logger, Metadata _header)
         {
             logger = _logger;
-            push = _push;
             header = _header;
         }
 
-        #region rpc - backend listen
         public override async Task<AddUserResponse> AddUser(AddUserRequest request, ServerCallContext context)
         {
             bool exist = false;
@@ -73,8 +67,8 @@ namespace K2svc.Backend
             }
 
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
-            var client = new UserSession.UserSessionClient(channel);
-            return await client.KickUserFAsync(request, header);
+            var client = new SessionHost.SessionHostClient(channel);
+            return await client.KickUserAsync(request, header);
         }
 
         public override async Task<PushResponse> Push(PushRequest request, ServerCallContext context)
@@ -90,55 +84,8 @@ namespace K2svc.Backend
 
             // session 에 기록된 push server 로 메시지 보내기
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
-            var client = new UserSession.UserSessionClient(channel);
-            return await client.PushFAsync(request, header);
-        }
-        #endregion
-
-        #region rpc - frontend listen
-        public override Task<KickUserResponse> KickUserF(KickUserRequest request, ServerCallContext context)
-        {
-            logger.LogInformation($"force to disconnect user : {request.UserId}");
-            if (push.Disconnect(request.UserId) == false)
-            {
-                logger.LogWarning($"user not found to disconnect : {request.UserId}");
-                return Task.FromResult(new KickUserResponse { Result = KickUserResponse.Types.ResultType.NotExist });
-            }
-            return Task.FromResult(new KickUserResponse { Result = KickUserResponse.Types.ResultType.Ok });
-        }
-
-        public override async Task<PushResponse> PushF(PushRequest request, ServerCallContext context)
-        {
-            if (await push.SendMessage(request.TargetUserId, request.ToResponse()))
-            {
-                return new PushResponse { Result = PushResponse.Types.ResultType.Ok };
-            }
-
-            return new PushResponse { Result = PushResponse.Types.ResultType.NotExist };
-        }
-
-        public override Task<IsOnlineResponse> IsOnlineF(IsOnlineRequest request, ServerCallContext context)
-        {
-            return Task.FromResult(
-                new IsOnlineResponse
-                {
-                    Result = push.Exists(request.UserId) ? IsOnlineResponse.Types.ResultType.Online : IsOnlineResponse.Types.ResultType.Offline
-                }
-            );
-        }
-        #endregion
-    }
-
-    public static class PushResponseExtension
-    {
-        public static K2.PushResponse ToResponse(this PushRequest request)
-        {
-            return new K2.PushResponse
-            {
-                Type = (K2.PushResponse.Types.PushType)(request.PushMessage.Type),
-                Message = request.PushMessage.Message,
-                Extra = request.PushMessage.Extra
-            };
+            var client = new SessionHost.SessionHostClient(channel);
+            return await client.PushAsync(request, header);
         }
     }
 }

@@ -13,6 +13,7 @@ namespace K2svc
         public static readonly string SERVER_MANAGEMENT_BACKEND_ADDRESS = $"http://{SERVICE_IP}:{LISTENING_PORT}";
         public static readonly int SERVER_REGISTER_DELAY_MILLISECONDS = 2000;
         public static readonly double SERVER_MANAGEMENT_PING_INTERVAL_SECONDS = 1.0;
+        public static readonly int STREAM_RESPONSE_TIME_MILLISECOND = 200;
     }
 
     public static class Security

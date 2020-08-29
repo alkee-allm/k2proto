@@ -1,8 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Grpc.Core;
 using K2;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
-using Grpc.Core;
 
 namespace K2svc.Frontend
 {
@@ -44,7 +44,7 @@ namespace K2svc.Frontend
 
             // UserSessionService 를 통해 메시지 보내기
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress);
-            var client = new K2B.UserSession.UserSessionClient(channel);
+            var client = new K2B.SessionManager.SessionManagerClient(channel);
             var result = await client.PushAsync(new K2B.PushRequest
             {
                 TargetUserId = request.Target,
@@ -69,7 +69,7 @@ namespace K2svc.Frontend
 
             // direct(해당 user가 연결되어있는 push 서버)로 메시지 보내기
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
-            var client = new K2B.UserSession.UserSessionClient(channel);
+            var client = new K2B.SessionHost.SessionHostClient(channel);
             var result = await client.PushAsync(new K2B.PushRequest
             {
                 TargetUserId = userId,
@@ -87,7 +87,7 @@ namespace K2svc.Frontend
         {
             // UserSessionService 로 보내기
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress);
-            var client = new K2B.UserSession.UserSessionClient(channel);
+            var client = new K2B.SessionManager.SessionManagerClient(channel);
             var result = await client.KickUserAsync(new K2B.KickUserRequest { UserId = request.Target }, header);
             logger.LogInformation($"kick result = {result.Result}");
 
