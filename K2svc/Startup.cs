@@ -24,7 +24,6 @@ namespace K2svc
             // 공통 resource(singleton)
             var cfg = config.GetSection(ServiceConfiguration.SECTION_NAME).Get<ServiceConfiguration>();
             services.AddSingleton(cfg); // 쉽게 접근해 사용할 수 있도록
-            services.AddSingleton<Frontend.PushService.Singleton>();
             var backendHeader = new Grpc.Core.Metadata();
             backendHeader.Add(nameof(cfg.BackendGroupId), cfg.BackendGroupId); // key 는 소문자로 변환되어 들어간다
             services.AddSingleton(backendHeader);
@@ -96,15 +95,21 @@ namespace K2svc
             app.UseEndpoints(endpoints =>
             {
                 // TODO: reflection 으로 endpoints.MapGrpcService 을 자동화
-                // backend services
-                endpoints.MapGrpcService<Backend.ServerManagementBackend>();
-                endpoints.MapGrpcService<Backend.UserSessionBackend>();
+
+                // backend services(managers)
+                if (cfg.ServerManagementBackendAddress == null) endpoints.MapGrpcService<Backend.ServerManagerBackend>();
+                if (cfg.EnableUserSessionBackend) { endpoints.MapGrpcService<Backend.SessionManagerBackend>(); }
+
+                // hosts(backend client to backend service)
+                // backend server 의 명령(push)을 받을 backend host 들 ; disable 될 수 없다.(항상 backend server push 를 받아야 한다)
+                endpoints.MapGrpcService<Backend.ServerHostBackend>();
+                endpoints.MapGrpcService<Backend.SessionHostBackend>();
 
                 // frontend services
-                endpoints.MapGrpcService<Frontend.InitService>();
-                endpoints.MapGrpcService<Frontend.PushService>();
-                endpoints.MapGrpcService<Frontend.PushSampleService>();
-                endpoints.MapGrpcService<Frontend.SimpleSampleService>();
+                if (cfg.EnableInitService) endpoints.MapGrpcService<Frontend.InitService>();
+                if (cfg.EnablePushService) endpoints.MapGrpcService<Frontend.PushService>();
+                if (cfg.EnablePushSampleService) endpoints.MapGrpcService<Frontend.PushSampleService>();
+                if (cfg.EnableSimpleSampleService) endpoints.MapGrpcService<Frontend.SimpleSampleService>();
 
                 endpoints.MapGet("/", async context =>
                 {

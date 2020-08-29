@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 namespace K2svc.Frontend
 {
+    // gRPC ServerCallContext 를 이용해 user 정보를 얻어오는 도구 함수 모음
     static class Session
     {
         // invalid 한 user id 또는 pushBackendAddress 가 아니라면 throws
@@ -39,8 +40,8 @@ namespace K2svc.Frontend
         internal static async Task<bool> IsOnline(string userId, string pushBackendAddress, Metadata backendHeader)
         {
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
-            var client = new UserSession.UserSessionClient(channel);
-            var response = await client.IsOnlineFAsync(new IsOnlineRequest { UserId = userId }, backendHeader);
+            var client = new SessionHost.SessionHostClient(channel); // 연결되어있는 서버(Host)에 직접 호출
+            var response = await client.IsOnlineAsync(new IsOnlineRequest { UserId = userId }, backendHeader);
             return response.Result == IsOnlineResponse.Types.ResultType.Online;
         }
     }
