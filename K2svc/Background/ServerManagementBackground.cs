@@ -82,7 +82,7 @@ namespace K2svc.Background
         private async Task<bool> Register()
         {
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
-            var client = new ServerManagement.ServerManagementClient(channel);
+            var client = new ServerManager.ServerManagerClient(channel);
             var req = new RegisterRequest
             {
                 Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
@@ -127,7 +127,7 @@ namespace K2svc.Background
         private async Task<bool> Ping()
         {
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
-            var client = new ServerManagement.ServerManagementClient(channel);
+            var client = new ServerManager.ServerManagerClient(channel);
 
             var req = new PingRequest
             {

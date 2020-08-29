@@ -5,7 +5,8 @@ using System.Threading.Tasks;
 
 namespace K2svc.Backend
 {
-    public class SessionHostBackend : SessionHost.SessionHostBase
+    public class SessionHostBackend
+        : SessionHost.SessionHostBase
     {
         private readonly ILogger<SessionHostBackend> logger;
         private readonly Frontend.PushService.IPushable pusher;

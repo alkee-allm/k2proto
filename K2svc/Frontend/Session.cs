@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 namespace K2svc.Frontend
 {
+    // gRPC ServerCallContext 를 이용해 user 정보를 얻어오는 도구 함수 모음
     static class Session
     {
         // invalid 한 user id 또는 pushBackendAddress 가 아니라면 throws

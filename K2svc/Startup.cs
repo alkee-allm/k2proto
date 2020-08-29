@@ -95,9 +95,14 @@ namespace K2svc
             app.UseEndpoints(endpoints =>
             {
                 // TODO: reflection 으로 endpoints.MapGrpcService 을 자동화
-                // backend services
-                if (cfg.ServerManagementBackendAddress == null) endpoints.MapGrpcService<Backend.ServerManagementBackend>();
+
+                // backend services(managers)
+                if (cfg.ServerManagementBackendAddress == null) endpoints.MapGrpcService<Backend.ServerManagerBackend>();
                 if (cfg.EnableUserSessionBackend) { endpoints.MapGrpcService<Backend.SessionManagerBackend>(); }
+
+                // hosts(backend client to backend service)
+                // backend server 의 명령(push)을 받을 backend host 들 ; disable 될 수 없다.(항상 backend server push 를 받아야 한다)
+                endpoints.MapGrpcService<Backend.ServerHostBackend>();
                 endpoints.MapGrpcService<Backend.SessionHostBackend>();
 
                 // frontend services

@@ -9,33 +9,6 @@ package K2B;
 message Null {} // same as google.protobuf.Empty
 
 // Services 
-service ServerManagement {
-	// backend listen
-	rpc Register (RegisterRequest) returns (RegisterResponse);
-	rpc Unregister (UnregisterRequest) returns (Null); // 정상적인 종료
-	rpc Ping (PingRequest) returns (PingResponse);
-	rpc Broadcast (PushRequest) returns (Null);
-
-	// frontend listen
-	rpc StopF (Null) returns (Null); // 종료 명령
-	rpc BroadcastF (PushRequest) returns (Null);
-}
-service UserSession {
-	// backend listen
-	rpc AddUser (AddUserRequest) returns (AddUserResponse);
-	rpc RemoveUser (RemoveUserRequest) returns (RemoveUserResponse);
-	rpc RemoveUsers (RemoveUsersRequest) returns (RemoveUsersResponse);
-	//rpc IsOnline (IsOnlineRequest) returns (IsOnlineResponse); // obsolete. use IsOnlineF instead
-
-	rpc KickUser (KickUserRequest) returns (KickUserResponse);
-	rpc Push (PushRequest) returns (PushResponse);
-
-	// frontend listen
-	rpc KickUserF (KickUserRequest) returns (KickUserResponse);
-	rpc PushF (PushRequest) returns (PushResponse);
-	rpc IsOnlineF (IsOnlineRequest) returns (IsOnlineResponse);
-}
-
 service ServerManager {
 	rpc Register (RegisterRequest) returns (RegisterResponse);
 	rpc Unregister (UnregisterRequest) returns (Null); // 정상적인 종료

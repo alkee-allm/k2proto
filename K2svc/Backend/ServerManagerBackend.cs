@@ -1,29 +1,24 @@
-﻿using System;
+﻿using Grpc.Core;
+using K2B;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
-using Grpc.Core;
-using K2B;
-using K2svc.Frontend;
-using Microsoft.EntityFrameworkCore.Internal;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace K2svc.Backend
 {
-    public class ServerManagementBackend : ServerManagement.ServerManagementBase
+    public class ServerManagerBackend
+        : ServerManager.ServerManagerBase
     {
-        private readonly ILogger<ServerManagementBackend> logger;
-        private readonly IHostApplicationLifetime life;
+        private readonly ILogger<ServerManagerBackend> logger;
         private readonly Metadata header;
 
         private static List<Server> servers = new List<Server>(); // server 수가 많지 않고, register/unregister 가 빈번하지 않으므로 별도의 index 는 필요 없을 것
         private static string serverManagementBackendAddress = null;
         private static string userSessionBackendAddress = null;
 
-        public ServerManagementBackend(ILogger<ServerManagementBackend> _logger,
-            IHostApplicationLifetime _life,
+        public ServerManagerBackend(ILogger<ServerManagerBackend> _logger,
             Metadata _header)
         {
             // ** ServiceConfiguration 사용 금지 **
@@ -31,11 +26,10 @@ namespace K2svc.Backend
             //   단독으로 사용되는 경우와 설정이 달라지는 상황(singleton)에 대한 디버깅이나 구현이 어렵다.
 
             logger = _logger;
-            life = _life;
             header = _header;
         }
 
-        #region rpc - backend listen
+        #region RPC
         public override Task<RegisterResponse> Register(RegisterRequest request, ServerCallContext context)
         {
             var server = new Server
@@ -165,33 +159,17 @@ namespace K2svc.Backend
             {
                 if (string.IsNullOrEmpty(s.BackendListeningAddress)) continue;
                 using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(s.BackendListeningAddress);
-                var client = new ServerManagement.ServerManagementClient(channel);
-                await client.BroadcastFAsync(request, header);
+                var client = new ServerHost.ServerHostClient(channel);
+                await client.BroadcastAsync(request, header);
             }
             return new Null();
         }
         #endregion
 
-        #region rpc - frontend listen
-        public override Task<Null> StopF(Null request, ServerCallContext context)
-        {
-            // TODO: 리소스 정리
 
-            life.StopApplication();
-            return Task.FromResult(new Null());
-        }
-
-        public override async Task<Null> BroadcastF(PushRequest request, ServerCallContext context)
-        {
-            var count = await PushService.Pusher.SendMessageToAll(request);
-            logger.LogInformation($"{count} broadcasted message : ", request.PushMessage);
-            return new Null();
-        }
-        #endregion
 
         private struct Server : IEquatable<Server>
         { // thread safety 를 위해 struct
-
             #region recent status
             public DateTime LastPingTime { get; set; }
             public uint Population { get; set; }
@@ -220,10 +198,11 @@ namespace K2svc.Backend
             internal string BackendListeningAddress => $"{ServiceScheme}://{PrivateIpAddress}:{ListeningPort}";
             internal string FrontendListeningAddress => string.IsNullOrEmpty(PublicIpAddress) ? null : $"{ServiceScheme}://{PublicIpAddress}:{ListeningPort}";
 
-            public bool Equals([AllowNull] Server other)
+            public bool Equals([System.Diagnostics.CodeAnalysis.AllowNull] Server other)
             { // List.Remove 에 사용하기 위해 IEquatable
                 return ServerId == other.ServerId;
             }
         }
+
     }
 }

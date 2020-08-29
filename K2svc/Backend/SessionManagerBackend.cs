@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace K2svc.Backend
 {
-    public class SessionManagerBackend : SessionManager.SessionManagerBase
+    public class SessionManagerBackend
+        : SessionManager.SessionManagerBase
     {
         private readonly ILogger<SessionManagerBackend> logger;
         private readonly Metadata header;

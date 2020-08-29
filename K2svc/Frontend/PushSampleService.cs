@@ -24,8 +24,9 @@ namespace K2svc.Frontend
         public override async Task<Null> Broadacast(BroadacastRequest request, ServerCallContext context)
         {
             // 연결된 모든 서버로 메시지를 전송하고 이 서버들에 연결된 모든 유저로 메시지를 전달하는 예시
+
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress);
-            var client = new K2B.ServerManagement.ServerManagementClient(channel);
+            var client = new K2B.ServerManager.ServerManagerClient(channel);
             await client.BroadcastAsync(new K2B.PushRequest
             {
                 PushMessage = new K2B.PushRequest.Types.PushResponse
@@ -39,7 +40,9 @@ namespace K2svc.Frontend
 
         public override async Task<Null> Message(MessageRequest request, ServerCallContext context)
         {
-            // 요청을 받은 front-end 서버에서 메시지 전달 대상 유저를 찾고 메시지를 전달하는 예시
+            // 메시지를 전달할 대상(client)이 어느 서버에 연결되어있는지 알 수 없는 경우
+            //    UserSessionBackend 를 통해 메시지를 전달(push) 하는 예시
+
             var (userId, pushBackendAddress) = Session.GetUserInfoOrThrow(context);
 
             // UserSessionService 를 통해 메시지 보내기
@@ -62,8 +65,9 @@ namespace K2svc.Frontend
 
         public override async Task<Null> Hello(Null request, ServerCallContext context)
         {
-            // 요청을 받은 front-end 서버와 실제 연결되어있는 push-service 가 다른 서버일 수 있다.
-            //   따라서, 응답처리가 별도의 push-service 를 통해 이루어져야 하는 경우에 대한 예시
+            // 요청받은 user 에게 지연된 결과(matching 등의 결과)를 push 를 통해 전달하는 방법 예시
+            //  (요청을 받은 front-end 서버와 실제 연결되어있는 push-service 가 다른 서버)
+            //  pushBackendAddress 를 별도 저장해 사용
 
             var (userId, pushBackendAddress) = Session.GetUserInfoOrThrow(context);
 
@@ -85,7 +89,8 @@ namespace K2svc.Frontend
 
         public override async Task<Null> Kick(KickRequest request, ServerCallContext context)
         {
-            // UserSessionService 로 보내기
+            // 다른 user 에게 명령을 수행하는 예시. 이 경우 연결이 끊어지도록 하는 명령 예시
+
             using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress);
             var client = new K2B.SessionManager.SessionManagerClient(channel);
             var result = await client.KickUserAsync(new K2B.KickUserRequest { UserId = request.Target }, header);
