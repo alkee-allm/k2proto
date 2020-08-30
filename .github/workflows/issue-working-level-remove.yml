@@ -1,0 +1,18 @@
+# https://github.com/alkee-allm/k2proto/issues/44
+
+name: WORKING issue label remover
+
+on:
+  issues:
+    types: [closed]
+    
+
+jobs:
+  remove_label: # https://github.com/marketplace/actions/actions-ecosystem-remove-labels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          github_token: ${{ secrets.github_token }}
+          labels: documentation
+          number: ${{ github.context.issue.number }}
