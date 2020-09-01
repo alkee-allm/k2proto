@@ -20,8 +20,10 @@ namespace K2svc.Backend
         }
 
         #region RPC
-        public override Task<Null> Stop(Null request, ServerCallContext context)
+        public override Task<Null> Stop(StopRequest request, ServerCallContext context)
         {
+            logger.LogWarning($"STOP rpc is called from ServerManager. reason : {request.Reason}");
+
             // TODO: 리소스 정리
 
             life.StopApplication();

@@ -117,7 +117,7 @@ namespace K2svc.Background
                 }
                 logger.LogInformation("Server Management backend is not ready");
             }
-            catch (Grpc.Core.RpcException e)
+            catch (RpcException e)
             {
                 logger.LogWarning($"ERROR on register : {e.Status.Detail}");
             }
@@ -151,7 +151,7 @@ namespace K2svc.Background
                 logger.LogInformation("Server Management backend not OK ping back.");
                 // TODO: 다시 register ?
             }
-            catch (Grpc.Core.RpcException e)
+            catch (RpcException e)
             {
                 logger.LogWarning($"ERROR on ping : {e.Status.Detail}");
             }

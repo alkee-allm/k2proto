@@ -15,8 +15,12 @@ namespace K2svc.Backend
         private readonly Metadata header;
 
         private static List<Server> servers = new List<Server>(); // server 수가 많지 않고, register/unregister 가 빈번하지 않으므로 별도의 index 는 필요 없을 것
+
+        #region internal states for ServerManager
+        private static object internalStateGuard = new object();
         private static string serverManagementBackendAddress = null;
         private static string userSessionBackendAddress = null;
+        #endregion
 
         public ServerManagerBackend(ILogger<ServerManagerBackend> _logger,
             Metadata _header)
@@ -90,10 +94,7 @@ namespace K2svc.Backend
                 // good to add
                 servers.Add(server);
             }
-
-            // unique backend service 가 연결된 경우 관리서버의 설정을 업데이트
-            if (server.HasServerManagement) serverManagementBackendAddress = server.BackendListeningAddress;
-            if (server.HasUserSession) userSessionBackendAddress = server.BackendListeningAddress;
+            OnServerAdd(server);
 
             // response
             rsp.Result = RegisterResponse.Types.ResultType.Ok;
@@ -105,6 +106,7 @@ namespace K2svc.Backend
 
         public override Task<Null> Unregister(UnregisterRequest request, ServerCallContext context)
         {
+            Server removed;
             lock (servers)
             {
                 var i = servers.FindIndex((s) => (request.ServerId == s.ServerId));
@@ -113,20 +115,17 @@ namespace K2svc.Backend
                     logger.LogWarning($"the server is not registered. serverId: {request.ServerId}");
                     return Task.FromResult(new Null());
                 }
-                var server = servers[i];
-
-                // backend unique server 인 경우 상태 정보 업데이트
-                if (server.HasServerManagement) serverManagementBackendAddress = null;
-                if (server.HasUserSession) userSessionBackendAddress = null;
-
+                removed = servers[i];
                 servers.RemoveAt(i);
             }
+            OnServerRemove(removed);
 
             return Task.FromResult(new Null());
         }
 
         public override Task<PingResponse> Ping(PingRequest request, ServerCallContext context)
         {
+            var timedOutServers = new List<Server>();
             lock (servers)
             {
                 var i = servers.FindIndex((s) => s.ServerId == request.ServerId);
@@ -146,6 +145,21 @@ namespace K2svc.Backend
                 server.MemoryUsage = request.MemoryUsage;
                 server.FreeHddBytes = request.FreeHddBytes;
                 servers.Insert(0, server);
+
+                // find timed out servers
+                var expried = DateTime.Now.Subtract(TimeSpan.FromSeconds(DefaultValues.SERVER_MANAGEMENT_PING_TIMEOUT_SECONDS));
+                while (servers.Count > 0 && servers.Last().LastPingTime < expried)
+                {
+                    timedOutServers.Add(servers.Last());
+                    servers.RemoveAt(servers.Count - 1); // remove last(oldest)
+                }
+            }
+
+            // timeed out server process
+            foreach (var timedOutServer in timedOutServers)
+            {
+                OnServerRemove(timedOutServer);
+                OnServerPingTimeOut(timedOutServer);
             }
 
             return Task.FromResult(new PingResponse { Ok = true });
@@ -166,7 +180,41 @@ namespace K2svc.Backend
         }
         #endregion
 
+        private void OnServerAdd(Server server)
+        {
+            // unique backend service 가 연결된 경우 관리서버의 설정을 업데이트
+            lock (internalStateGuard)
+            {
+                if (server.HasServerManagement) serverManagementBackendAddress = server.BackendListeningAddress;
+                if (server.HasUserSession) userSessionBackendAddress = server.BackendListeningAddress;
+            }
+        }
 
+        private void OnServerRemove(Server server)
+        {
+            // backend unique server 인 경우 상태 정보 업데이트
+            lock (internalStateGuard)
+            {
+                if (server.HasServerManagement) serverManagementBackendAddress = null;
+                if (server.HasUserSession) userSessionBackendAddress = null;
+            }
+        }
+
+        private void OnServerPingTimeOut(Server server)
+        {
+            logger.LogWarning($"PING TIMED-OUT server {server.ServerId}({server.FrontendListeningAddress}/{server.BackendListeningAddress})");
+
+            // ping timoue 이더라도 backed 가 살아있을 수 있으므로 강제 종료시켜, 사용자 및 서버의 데이터가 일치하지 않아
+            //  발생할 수 있는 예측불가능한 문제를 차단
+            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(server.BackendListeningAddress);
+            var client = new ServerHost.ServerHostClient(channel);
+            try
+            {
+                client.Stop(new StopRequest { Reason = "PING TIMEOUT" }, deadline: DateTime.UtcNow.AddSeconds(1));
+                logger.LogWarning($"server was alive. STOP rpc called. {server.ServerId}/{server.BackendListeningAddress}");
+            }
+            catch (RpcException) { }
+        }
 
         private struct Server : IEquatable<Server>
         { // thread safety 를 위해 struct
@@ -203,6 +251,8 @@ namespace K2svc.Backend
                 return ServerId == other.ServerId;
             }
         }
+
+
 
     }
 }

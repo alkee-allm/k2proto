@@ -16,14 +16,13 @@ service ServerManager {
 	rpc Broadcast (PushRequest) returns (Null);
 }
 service ServerHost { // from ServerManager 
-	rpc Stop (Null) returns (Null); // 종료 명령
+	rpc Stop (StopRequest) returns (Null); // 종료 명령
 	rpc Broadcast (PushRequest) returns (Null);
 }
 
 service SessionManager {
 	rpc AddUser (AddUserRequest) returns (AddUserResponse);
 	rpc RemoveUser (RemoveUserRequest) returns (RemoveUserResponse);
-	rpc RemoveUsers (RemoveUsersRequest) returns (RemoveUsersResponse);
 	rpc KickUser (KickUserRequest) returns (KickUserResponse);
 	rpc Push (PushRequest) returns (PushResponse);
 }
@@ -118,6 +117,10 @@ message PingRequest {
 message PingResponse {
 	bool ok = 1; // false 인 경우 정책에 따라 서비스를 종료하거나, 다시 register 하거나 등등
 }
+
+message StopRequest {
+	string reason = 1;
+}
 /////////////////////////////////////////////////////////// ServerManagement //
 
 // UserSession ////////////////////////////////////////////////////////////////
@@ -152,15 +155,6 @@ message RemoveUserResponse {
 		UNKNOWN_ERROR = 10;
 	}
 	ResultType result = 1;
-}
-
-message RemoveUsersRequest {
-	string serverId = 1;
-	string pushBackendAddress = 2;
-}
-
-message RemoveUsersResponse {
-	uint32 removedUserCount = 1;
 }
 
 message IsOnlineRequest {
