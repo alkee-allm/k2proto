@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace K2svc.Frontend
@@ -49,20 +50,21 @@ namespace K2svc.Frontend
             var streamCanceller = new CancellationTokenSource();
             users.Add(userId, responseStream, context, streamCanceller);
 
-            var newJwt = GenerateJwtToken(userId, config.BackendListeningAddress);
-            await responseStream.WriteAsync(new PushResponse
+            // thread-safety 문제가 있으므로 responseStream 을 직접 사용하지 않도록(#46)
+            await users.SendMessage(userId, new PushResponse
             {
                 Type = PushResponse.Types.PushType.Config,
                 Message = "jwt",
-                Extra = newJwt
+                Extra = GenerateJwtToken(userId, config.BackendListeningAddress) // new JWT
             });
 
             while (!context.CancellationToken.IsCancellationRequested & !streamCanceller.IsCancellationRequested)
             { // holding up the stream
                 await Task
-                    .Delay(DefaultValues.STREAM_RESPONSE_TIME_MILLISECOND)
+                    .Delay(DefaultValues.STREAM_RESPONSE_TIME_MILLISECOND) // 간편한 방법. awaiter 를 추가해 구현하려면 ; https://medium.com/@cilliemalan/how-to-await-a-cancellation-token-in-c-cbfc88f28fa2
                     .ConfigureAwait(false); // 어느 thread 에서나 task 실행 가능
             }
+            if (streamCanceller.IsCancellationRequested == false) streamCanceller.Cancel();
 
             logger.LogInformation($"ending push service for : {userId}");
 
@@ -113,7 +115,7 @@ namespace K2svc.Frontend
                     if (users.TryGetValue(targetUserId, out user) == false)
                         return false;
                 }
-                await user.Stream.WriteAsync(message);
+                await user.ResponseQueue.WriteAsync(message, user.Canceller.Token);
                 return true;
             }
             public Task<bool> SendMessage(string targetUserId, K2B.PushRequest message) => SendMessage(targetUserId, ToResponse(message));
@@ -126,7 +128,7 @@ namespace K2svc.Frontend
                     targets = new List<User>(users.Values);
                 }
                 foreach (var t in targets)
-                    await t.Stream.WriteAsync(message);
+                    await t.ResponseQueue.WriteAsync(message, t.Canceller.Token);
                 return targets.Count;
             }
             public Task<int> SendMessageToAll(K2B.PushRequest message) => SendMessageToAll(ToResponse(message));
@@ -155,7 +157,7 @@ namespace K2svc.Frontend
                 var user = new User
                 {
                     Id = userId,
-                    Stream = stream,
+                    ResponseQueue = new GrpcStreamResponseQueue<PushResponse>(stream, streamCanceller.Token),
                     Context = context,
                     Canceller = streamCanceller
                 };
@@ -167,23 +169,78 @@ namespace K2svc.Frontend
                 lock (users) users.Remove(user);
             }
 
-            private static K2.PushResponse ToResponse(K2B.PushRequest req)
+            private static PushResponse ToResponse(K2B.PushRequest req)
             {
-                return new K2.PushResponse
+                return new PushResponse
                 { // request to response ; Manager 로부터 받은(request) 데이터를 그대로 클라이언트에 전달(response) 
-                    Type = (K2.PushResponse.Types.PushType)(req.PushMessage.Type),
+                    Type = (PushResponse.Types.PushType)(req.PushMessage.Type),
                     Message = req.PushMessage.Message,
                     Extra = req.PushMessage.Extra
                 };
             }
 
-
             private class User
             {
                 public string Id { get; set; }
-                public IServerStreamWriter<PushResponse> Stream { get; set; }
+                public GrpcStreamResponseQueue<PushResponse> ResponseQueue { get; set; } // for thread-safety(#46)
                 public ServerCallContext Context { get; set; }
                 public CancellationTokenSource Canceller { get; set; }
+            }
+
+            /// <summary>
+            ///     Wraps <see cref="IServerStreamWriter{T}"/> which only supports one writer at a time.
+            ///     This class can receive messages from multiple threads, and writes them to the stream
+            ///     one at a time.
+            /// </summary>
+            /// <typeparam name="T">Type of message written to the stream</typeparam>
+            private class GrpcStreamResponseQueue<T> // https://github.com/grpc/grpc-dotnet/issues/579#issuecomment-574056565
+            {
+                private readonly IServerStreamWriter<T> _stream;
+                private readonly Task _consumer;
+
+                private readonly Channel<T> _channel = Channel.CreateUnbounded<T>(
+                    new UnboundedChannelOptions
+                    {
+                        SingleWriter = false,
+                        SingleReader = true,
+                    });
+
+                public GrpcStreamResponseQueue(
+                    IServerStreamWriter<T> stream,
+                    CancellationToken cancellationToken = default
+                )
+                {
+                    _stream = stream;
+                    _consumer = Consume(cancellationToken);
+                }
+
+                /// <summary>
+                ///     Asynchronously writes an item to the channel.
+                /// </summary>
+                /// <param name="message">The value to write to the channel.</param>
+                /// <param name="cancellationToken">A <see cref="T:System.Threading.CancellationToken" /> used to cancel the write operation.</param>
+                /// <returns>A <see cref="T:System.Threading.Tasks.ValueTask" /> that represents the asynchronous write operation.</returns>
+                public async ValueTask WriteAsync(T message, CancellationToken cancellationToken = default)
+                {
+                    await _channel.Writer.WriteAsync(message, cancellationToken);
+                }
+
+                /// <summary>
+                ///     Marks the writer as completed, and waits for all writes to complete.
+                /// </summary>
+                public Task CompleteAsync()
+                {
+                    _channel.Writer.Complete();
+                    return _consumer;
+                }
+
+                private async Task Consume(CancellationToken cancellationToken)
+                {
+                    await foreach (var message in _channel.Reader.ReadAllAsync(cancellationToken))
+                    {
+                        await _stream.WriteAsync(message);
+                    }
+                }
             }
         }
         #endregion
