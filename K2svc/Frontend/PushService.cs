@@ -19,12 +19,14 @@ namespace K2svc.Frontend
         private readonly ILogger<PushService> logger;
         private readonly ServiceConfiguration config;
         private readonly Metadata header;
+        private readonly Net.GrpcClients clients;
 
-        public PushService(ILogger<PushService> _logger, ServiceConfiguration _config, Metadata _header)
+        public PushService(ILogger<PushService> _logger, ServiceConfiguration _config, Metadata _header, Net.GrpcClients _clients)
         {
             logger = _logger;
             config = _config;
             header = _header;
+            clients = _clients;
         }
 
         #region rpc
@@ -34,17 +36,15 @@ namespace K2svc.Frontend
             if (string.IsNullOrEmpty(userId)) throw new ApplicationException($"invalid session state of the user : {context.RequestHeaders}");
 
             logger.LogInformation($"begining push service for : {userId}");
-            using (var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress))
+
+            var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.UserSessionBackendAddress);
+            var addUserResult = await client.AddUserAsync(new K2B.AddUserRequest
             {
-                var client = new K2B.SessionManager.SessionManagerClient(channel);
-                var result = await client.AddUserAsync(new K2B.AddUserRequest
-                {
-                    Force = true, // 항상 성공
-                    BackendListeningAddress = config.BackendListeningAddress,
-                    UserId = userId,
-                }, header);
-                logger.LogInformation($"adding user({userId}) {result.Result} to session backend : {config.BackendListeningAddress}");
-            }
+                Force = true, // 항상 성공
+                BackendListeningAddress = config.BackendListeningAddress,
+                UserId = userId,
+            }, header);
+            logger.LogInformation($"adding user({userId}) {addUserResult.Result} to session backend : {config.BackendListeningAddress}");
 
             var streamCanceller = new CancellationTokenSource();
             users.Add(userId, responseStream, context, streamCanceller);
@@ -66,12 +66,8 @@ namespace K2svc.Frontend
 
             logger.LogInformation($"ending push service for : {userId}");
 
-            using (var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.UserSessionBackendAddress))
-            {
-                var client = new K2B.SessionManager.SessionManagerClient(channel);
-                var result = await client.RemoveUserAsync(new K2B.RemoveUserRequest { BackendListeningAddress = config.BackendListeningAddress, UserId = userId }, header);
-                logger.LogInformation($"removing user({userId}) to session backend : {result}");
-            }
+            var removeUserResult = await client.RemoveUserAsync(new K2B.RemoveUserRequest { BackendListeningAddress = config.BackendListeningAddress, UserId = userId }, header);
+            logger.LogInformation($"removing user({userId}) to session backend : {removeUserResult}");
             users.Remove(userId);
         }
         #endregion

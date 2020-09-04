@@ -27,6 +27,7 @@ namespace K2svc
             var backendHeader = new Grpc.Core.Metadata();
             backendHeader.Add(nameof(cfg.BackendGroupId), cfg.BackendGroupId); // key 는 소문자로 변환되어 들어간다
             services.AddSingleton(backendHeader);
+            services.AddSingleton<Net.GrpcClients>();
 
             // database
             services.AddDbContext<Db.AccountDb>();

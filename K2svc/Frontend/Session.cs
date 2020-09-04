@@ -37,10 +37,10 @@ namespace K2svc.Frontend
             return (userId, pushBackendAddress);
         }
 
+        private static Net.GrpcClients clients = new Net.GrpcClients();
         internal static async Task<bool> IsOnline(string userId, string pushBackendAddress, Metadata backendHeader)
         {
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
-            var client = new SessionHost.SessionHostClient(channel); // 연결되어있는 서버(Host)에 직접 호출
+            var client = clients.GetClient<SessionHost.SessionHostClient>(pushBackendAddress); // 연결되어있는 서버(Host)에 직접 호출
             var response = await client.IsOnlineAsync(new IsOnlineRequest { UserId = userId }, backendHeader);
             return response.Result == IsOnlineResponse.Types.ResultType.Online;
         }
