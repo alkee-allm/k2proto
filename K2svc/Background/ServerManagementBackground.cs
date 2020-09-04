@@ -15,6 +15,7 @@ namespace K2svc.Background
         private readonly ILogger<ServerManagementBackground> logger;
         private readonly ServiceConfiguration config;
         private readonly Metadata header;
+        private readonly Net.GrpcClients clients;
 
         private Timer timer;
         private int workCount = 0;
@@ -27,11 +28,12 @@ namespace K2svc.Background
         }
         private State currentState = State.REGISTERING;
 
-        public ServerManagementBackground(ILogger<ServerManagementBackground> _logger, ServiceConfiguration _config, Metadata _header)
+        public ServerManagementBackground(ILogger<ServerManagementBackground> _logger, ServiceConfiguration _config, Metadata _header, Net.GrpcClients _clients)
         {
             logger = _logger;
             config = _config;
             header = _header;
+            clients = _clients;
         }
 
         public void Dispose()
@@ -81,8 +83,7 @@ namespace K2svc.Background
 
         private async Task<bool> Register()
         {
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
-            var client = new ServerManager.ServerManagerClient(channel);
+            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
             var req = new RegisterRequest
             {
                 Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
@@ -126,8 +127,7 @@ namespace K2svc.Background
 
         private async Task<bool> Ping()
         {
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
-            var client = new ServerManager.ServerManagerClient(channel);
+            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
 
             var req = new PingRequest
             {

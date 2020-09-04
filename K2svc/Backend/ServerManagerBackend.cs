@@ -13,6 +13,7 @@ namespace K2svc.Backend
     {
         private readonly ILogger<ServerManagerBackend> logger;
         private readonly Metadata header;
+        private readonly Net.GrpcClients clients;
 
         private static List<Server> servers = new List<Server>(); // server 수가 많지 않고, register/unregister 가 빈번하지 않으므로 별도의 index 는 필요 없을 것
 
@@ -23,7 +24,8 @@ namespace K2svc.Backend
         #endregion
 
         public ServerManagerBackend(ILogger<ServerManagerBackend> _logger,
-            Metadata _header)
+            Metadata _header,
+            Net.GrpcClients _clients)
         {
             // ** ServiceConfiguration 사용 금지 **
             //   ServerManagement 가 다른 서비스들과 함께 서비스 될 수 있기 때문에 ServiceConfiguration 을 사용하게되면
@@ -31,6 +33,7 @@ namespace K2svc.Backend
 
             logger = _logger;
             header = _header;
+            clients = _clients;
         }
 
         #region RPC
@@ -172,8 +175,7 @@ namespace K2svc.Backend
             foreach (var s in all)
             {
                 if (string.IsNullOrEmpty(s.BackendListeningAddress)) continue;
-                using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(s.BackendListeningAddress);
-                var client = new ServerHost.ServerHostClient(channel);
+                var client = clients.GetClient<ServerHost.ServerHostClient>(s.BackendListeningAddress);
                 await client.BroadcastAsync(request, header);
             }
             return new Null();
@@ -206,8 +208,7 @@ namespace K2svc.Backend
 
             // ping timoue 이더라도 backed 가 살아있을 수 있으므로 강제 종료시켜, 사용자 및 서버의 데이터가 일치하지 않아
             //  발생할 수 있는 예측불가능한 문제를 차단
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(server.BackendListeningAddress);
-            var client = new ServerHost.ServerHostClient(channel);
+            var client = clients.GetClient<ServerHost.ServerHostClient>(server.BackendListeningAddress);
             try
             {
                 client.Stop(new StopRequest { Reason = "PING TIMEOUT" }, deadline: DateTime.UtcNow.AddSeconds(1));

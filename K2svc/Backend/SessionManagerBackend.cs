@@ -11,13 +11,15 @@ namespace K2svc.Backend
     {
         private readonly ILogger<SessionManagerBackend> logger;
         private readonly Metadata header;
+        private readonly Net.GrpcClients clients;
 
         private static Dictionary<string/*userId*/, string/*pushBackendAddress*/> sessions = new Dictionary<string, string>();
 
-        public SessionManagerBackend(ILogger<SessionManagerBackend> _logger, Metadata _header)
+        public SessionManagerBackend(ILogger<SessionManagerBackend> _logger, Metadata _header, Net.GrpcClients _clients)
         {
             logger = _logger;
             header = _header;
+            clients = _clients;
         }
 
         public override async Task<AddUserResponse> AddUser(AddUserRequest request, ServerCallContext context)
@@ -67,8 +69,7 @@ namespace K2svc.Backend
                 }
             }
 
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
-            var client = new SessionHost.SessionHostClient(channel);
+            var client = clients.GetClient<SessionHost.SessionHostClient>(pushBackendAddress);
             return await client.KickUserAsync(request, header);
         }
 
@@ -84,8 +85,7 @@ namespace K2svc.Backend
             }
 
             // session 에 기록된 push server 로 메시지 보내기
-            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(pushBackendAddress);
-            var client = new SessionHost.SessionHostClient(channel);
+            var client = clients.GetClient<SessionHost.SessionHostClient>(pushBackendAddress);
             return await client.PushAsync(request, header);
         }
     }
