@@ -52,7 +52,7 @@ namespace K2svc
             var config = configuration.GetSection(ServiceConfiguration.SECTION_NAME).Get<ServiceConfiguration>();
             if (config == null) config = new ServiceConfiguration(); // create default
 
-            config.ServerManagementBackendAddress = backendAddressFromArg;
+            config.RemoteServerManagerAddress = backendAddressFromArg; // ServerManager 인 경우 null or empty
             return config;
         }
 

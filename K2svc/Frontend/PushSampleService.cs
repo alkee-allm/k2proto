@@ -27,7 +27,7 @@ namespace K2svc.Frontend
         {
             // 연결된 모든 서버로 메시지를 전송하고 이 서버들에 연결된 모든 유저로 메시지를 전달하는 예시
 
-            var client = clients.GetClient<K2B.ServerManager.ServerManagerClient>(config.ServerManagementBackendAddress);
+            var client = clients.GetClient<K2B.ServerManager.ServerManagerClient>(config.ServerManagerAddress);
             await client.BroadcastAsync(new K2B.PushRequest
             {
                 PushMessage = new K2B.PushRequest.Types.PushResponse

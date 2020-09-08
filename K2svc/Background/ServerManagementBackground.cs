@@ -83,7 +83,7 @@ namespace K2svc.Background
 
         private async Task<bool> Register()
         {
-            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
+            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagerAddress);
             var req = new RegisterRequest
             {
                 Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
@@ -92,7 +92,7 @@ namespace K2svc.Background
                 PublicIp = Util.GetPublicIp(), // backend 전용인 경우 null
                 ServiceScheme = config.ServiceScheme,
 
-                HasServerManagement = config.ServerManagementBackendAddress == null,
+                HasServerManagement = config.RemoteServerManagerAddress == null,
 
                 // backend unique services
                 HasUserSession = config.EnableUserSessionBackend,
@@ -109,7 +109,7 @@ namespace K2svc.Background
                 var rsp = await client.RegisterAsync(req, header);
                 if (rsp.Result == RegisterResponse.Types.ResultType.Ok)
                 {
-                    config.ServerManagementBackendAddress = rsp.ServerManagementAddress; // 시작환경에 의해 고정되기때문에 의미 없을 것.
+                    config.RemoteServerManagerAddress = rsp.ServerManagementAddress; // 시작환경에 의해 고정되기때문에 의미 없을 것.
                     config.UserSessionBackendAddress = rsp.UserSessionAddress;
 
                     config.BackendListeningAddress = rsp.BackendListeningAddress; // Register 에 의해 private IP 가 결정되기때문에 이 이후부터 사용 가능.
@@ -127,7 +127,7 @@ namespace K2svc.Background
 
         private async Task<bool> Ping()
         {
-            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
+            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagerAddress);
 
             var req = new PingRequest
             {

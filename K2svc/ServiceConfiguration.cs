@@ -52,7 +52,6 @@ namespace K2svc
         }
 
         #region 외부에서 설정되는 값들(ServerManagementService 및 기타 서비스) ; 따라서 기본값이 null 이어야 문제확인(올바르게 설정되었는지)이 가능
-
         internal string BackendListeningAddress { get; set; }
 
         // ** Server management service 의 경우, 직접 이 config 값을 사용해서는 안된다. **
@@ -62,8 +61,14 @@ namespace K2svc
         // specific backend addresses
         internal string UserSessionBackendAddress { get; set; }
         // etc
-        internal string ServerManagementBackendAddress { get; set; } // commandline argument 에 의해 설정
+        internal string RemoteServerManagerAddress { get; set; } // 이 서버가 ServerManager 역할을 갖는 경우 null
         internal bool Registered;
+        #endregion
+
+        #region helper
+        internal bool IsThisServerManager => string.IsNullOrEmpty(UserSessionBackendAddress);
+        internal string LocalServerManagerAddress => $"{ServiceScheme}://localhost:{ListeningPort}";
+        internal string ServerManagerAddress => IsThisServerManager ? LocalServerManagerAddress : RemoteServerManagerAddress;
         #endregion
     }
 }

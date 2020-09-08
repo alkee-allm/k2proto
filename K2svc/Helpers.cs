@@ -11,7 +11,6 @@ namespace K2svc
         public static readonly string APP_SETTINGS_OVERRIDE_FILENAME = $"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json";
         public static readonly string SERVICE_IP = "localhost";
         public static readonly int LISTENING_PORT = 9060;
-        public static readonly string SERVER_MANAGEMENT_BACKEND_ADDRESS = $"http://{SERVICE_IP}:{LISTENING_PORT}";
         public static readonly double SERVER_MANAGEMENT_PING_INTERVAL_SECONDS = 1.0;
         public static readonly double SERVER_MANAGEMENT_PING_TIMEOUT_SECONDS = 3.0;
         public static readonly int STREAM_RESPONSE_TIME_MILLISECOND = 200;

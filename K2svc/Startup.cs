@@ -79,9 +79,8 @@ namespace K2svc
             // service blocker
             app.Use(async (context, next) =>
             { // https://docs.microsoft.com/ko-kr/aspnet/core/fundamentals/middleware/write?view=aspnetcore-3.1#middleware-class
-                if (string.IsNullOrEmpty(cfg.ServerManagementBackendAddress) == false // not ServerManagementService
-                    && cfg.Registered == false) // 아직 register 되지 않은 서버
-                {
+                if (cfg.IsThisServerManager == false && cfg.Registered == false)
+                { // 아직 grpc 서비스를 사용가능한 상태가 아님
                     return;
                 }
                 await next();
@@ -98,7 +97,7 @@ namespace K2svc
                 // TODO: reflection 으로 endpoints.MapGrpcService 을 자동화
 
                 // backend services(managers)
-                if (cfg.ServerManagementBackendAddress == null) endpoints.MapGrpcService<Backend.ServerManagerBackend>();
+                if (cfg.RemoteServerManagerAddress == null) endpoints.MapGrpcService<Backend.ServerManagerBackend>();
                 if (cfg.EnableUserSessionBackend) { endpoints.MapGrpcService<Backend.SessionManagerBackend>(); }
 
                 // hosts(backend client to backend service)

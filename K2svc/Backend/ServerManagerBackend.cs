@@ -18,9 +18,10 @@ namespace K2svc.Backend
         private static List<Server> servers = new List<Server>(); // server 수가 많지 않고, register/unregister 가 빈번하지 않으므로 별도의 index 는 필요 없을 것
 
         #region internal states for ServerManager
+        private static string SERVER_NOT_EXIST = ""; // null 의 의미이지만 gRPC message 에 string null 을 사용할 수 없음('System.ArgumentNullException'(Google.Protobuf.dll))
         private static object internalStateGuard = new object();
-        private static string serverManagementBackendAddress = null;
-        private static string userSessionBackendAddress = null;
+        private static string serverManagementBackendAddress = SERVER_NOT_EXIST; 
+        private static string userSessionBackendAddress = SERVER_NOT_EXIST;
         #endregion
 
         public ServerManagerBackend(ILogger<ServerManagerBackend> _logger,
@@ -197,8 +198,8 @@ namespace K2svc.Backend
             // backend unique server 인 경우 상태 정보 업데이트
             lock (internalStateGuard)
             {
-                if (server.HasServerManagement) serverManagementBackendAddress = null;
-                if (server.HasUserSession) userSessionBackendAddress = null;
+                if (server.HasServerManagement) serverManagementBackendAddress = SERVER_NOT_EXIST;
+                if (server.HasUserSession) userSessionBackendAddress = SERVER_NOT_EXIST;
             }
         }
 
