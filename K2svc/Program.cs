@@ -45,6 +45,7 @@ namespace K2svc
                 .AddEnvironmentVariables() // 환경변수에 "K2:ServerId" 와 같은 형식의 값으로 사용 가능하도록
                                            // commandline 설정은 custom 한 방식을 사용. 즉, AddCommandLine(args) 사용하지 않음.
                 .AddJsonFile(DefaultValues.APP_SETTINGS_FILENAME)
+                .AddJsonFile(DefaultValues.APP_SETTINGS_OVERRIDE_FILENAME)
                 .Build()
                 ;
 

@@ -8,6 +8,7 @@ namespace K2svc
     public static class DefaultValues
     {
         public static readonly string APP_SETTINGS_FILENAME = "appsettings.json";
+        public static readonly string APP_SETTINGS_OVERRIDE_FILENAME = $"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json";
         public static readonly string SERVICE_IP = "localhost";
         public static readonly int LISTENING_PORT = 9060;
         public static readonly string SERVER_MANAGEMENT_BACKEND_ADDRESS = $"http://{SERVICE_IP}:{LISTENING_PORT}";
