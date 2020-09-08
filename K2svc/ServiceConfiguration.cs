@@ -66,7 +66,7 @@ namespace K2svc
         #endregion
 
         #region helper
-        internal bool IsThisServerManager => string.IsNullOrEmpty(UserSessionBackendAddress);
+        internal bool IsThisServerManager => string.IsNullOrEmpty(RemoteServerManagerAddress);
         internal string LocalServerManagerAddress => $"{ServiceScheme}://localhost:{ListeningPort}";
         internal string ServerManagerAddress => IsThisServerManager ? LocalServerManagerAddress : RemoteServerManagerAddress;
         #endregion

@@ -120,7 +120,7 @@ namespace K2svc.Background
             }
             catch (RpcException e)
             {
-                logger.LogWarning($"ERROR on register : {e.Status.Detail}");
+                logger.LogWarning($"ERROR on register to {config.ServerManagerAddress} : {e.Status.Detail}");
             }
             return false;
         }

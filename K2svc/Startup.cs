@@ -11,22 +11,15 @@ namespace K2svc
 {
     public class Startup
     {
-        private readonly IConfiguration config;
-        public Startup(IConfiguration _config)
+        public Startup()
         {
-            config = _config;
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
-            // 공통 resource(singleton)
-            var cfg = config.GetSection(ServiceConfiguration.SECTION_NAME).Get<ServiceConfiguration>();
-            services.AddSingleton(cfg); // 쉽게 접근해 사용할 수 있도록
-            var backendHeader = new Grpc.Core.Metadata();
-            backendHeader.Add(nameof(cfg.BackendGroupId), cfg.BackendGroupId); // key 는 소문자로 변환되어 들어간다
-            services.AddSingleton(backendHeader);
+            // 공통 resource(singleton) ; ServiceConfiguration 이 필요한 설정은 StartUp 이전(Program.cs : CreateHostBuilder)에서.
             services.AddSingleton<Net.GrpcClients>();
 
             // database
