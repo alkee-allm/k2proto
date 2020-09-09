@@ -73,6 +73,7 @@ namespace K2svc.Background
             {
                 if (currentState == State.REGISTERING && await Register())
                 {
+                    logger.LogInformation($"server registered to ServerManager : {config.ServerManagerAddress}");
                     currentState = State.PINGING;
                 }
                 else if (currentState == State.PINGING && await Ping())
@@ -148,8 +149,10 @@ namespace K2svc.Background
                 {
                     return true;
                 }
-                logger.LogInformation("Server Management backend not OK ping back.");
-                // TODO: 다시 register ?
+                logger.LogInformation("Server Manager responded NOT OK(unregistered)");
+                // set to reregister
+                config.Registered = false;
+                currentState = State.REGISTERING;
             }
             catch (RpcException e)
             {
