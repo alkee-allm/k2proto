@@ -57,18 +57,14 @@ namespace K2svc.Background
 
         private async void OnTime(object state) // event handler 이므로 async Task 가 아닌 async void
         {
-            if (workCount > 0)
+            var cnt = Interlocked.Increment(ref workCount);
+
+            if (cnt > 1)
             {
-                logger.LogWarning($"ServerManagement timer is busy({workCount})");
-                var cnt = Interlocked.Increment(ref workCount);
-                if (cnt == 1) // timer 끝나자마자 increament 실행된 경우.
-                {
-                    Interlocked.Exchange(ref workCount, 0);
-                }
+                logger.LogWarning($"ServerManagement timer is busy({cnt - 1})");
                 return;
             }
 
-            Interlocked.Exchange(ref workCount, 1);
             using (new Defer(() => { Interlocked.Exchange(ref workCount, 0); }))
             {
                 if (currentState == State.REGISTERING && await Register())
