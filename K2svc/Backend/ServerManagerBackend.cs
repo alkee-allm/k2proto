@@ -175,7 +175,7 @@ namespace K2svc.Backend
             lock (servers) all = new List<Server>(servers);
             foreach (var s in all)
             {
-                if (string.IsNullOrEmpty(s.BackendListeningAddress)) continue;
+                if (s.HasPush == false) continue;
                 var client = clients.GetClient<ServerHost.ServerHostClient>(s.BackendListeningAddress);
                 await client.BroadcastAsync(request, header);
             }
@@ -205,7 +205,7 @@ namespace K2svc.Backend
 
         private void OnServerPingTimeOut(Server server)
         {
-            logger.LogWarning($"PING TIMED-OUT server {server.ServerId}({server.FrontendListeningAddress}/{server.BackendListeningAddress})");
+            logger.LogWarning($"PING TIMEDOUT server {server.ServerId}\n\tfrontend: {server.FrontendListeningAddress}\n\tbackend: {server.BackendListeningAddress}");
 
             // ping timoue 이더라도 backed 가 살아있을 수 있으므로 강제 종료시켜, 사용자 및 서버의 데이터가 일치하지 않아
             //  발생할 수 있는 예측불가능한 문제를 차단
