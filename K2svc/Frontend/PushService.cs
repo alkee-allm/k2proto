@@ -38,14 +38,21 @@ namespace K2svc.Frontend
 
             logger.LogInformation($"begining push service for : {userId}");
 
-            var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.UserSessionBackendAddress);
-            var addUserResult = await client.AddUserAsync(new K2B.AddUserRequest
+            try
             {
-                Force = true, // 항상 성공
-                BackendListeningAddress = config.BackendListeningAddress,
-                UserId = userId,
-            }, header);
-            logger.LogInformation($"adding user({userId}) {addUserResult.Result} to session backend : {config.BackendListeningAddress}");
+                var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.SessionManagerAddress);
+                var addUserResult = await client.AddUserAsync(new K2B.AddUserRequest
+                {
+                    Force = true, // 항상 성공
+                    BackendListeningAddress = config.BackendListeningAddress,
+                    UserId = userId,
+                }, header);
+                logger.LogInformation($"adding user({userId}) {addUserResult.Result} to session backend : {config.BackendListeningAddress}");
+            }
+            catch (RpcException ex)
+            {
+                logger.LogWarning($"Unable to add user({userId}) to SessionManager : {ex}");
+            }
 
             var streamCanceller = new CancellationTokenSource();
             users.Add(userId, responseStream, context, streamCanceller);
@@ -68,8 +75,18 @@ namespace K2svc.Frontend
 
             logger.LogInformation($"ending push service for : {userId}");
 
-            var removeUserResult = await client.RemoveUserAsync(new K2B.RemoveUserRequest { BackendListeningAddress = config.BackendListeningAddress, UserId = userId }, header);
-            logger.LogInformation($"removing user({userId}) to session backend : {removeUserResult}");
+            // session server 가 변경되었을 수 있기 때문에 다시 할당
+            try
+            {
+                var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.SessionManagerAddress);
+                var removeUserResult = await client.RemoveUserAsync(new K2B.RemoveUserRequest { BackendListeningAddress = config.BackendListeningAddress, UserId = userId }, header);
+                logger.LogInformation($"removing user({userId}) to session backend : {removeUserResult}");
+            }
+            catch (RpcException ex)
+            {
+                logger.LogWarning($"Unable to remove user({userId}) from SessionManager : {ex}");
+            }
+
             users.Remove(userId);
         }
         #endregion
@@ -100,6 +117,8 @@ namespace K2svc.Frontend
             Task<int> SendMessageToAll(K2B.PushRequest message); // backend 요청을 client 응답(K2.PushResponse)으로 내부변환
             bool Disconnect(string targetUserId);
             bool IsConnected(string targetUserId);
+
+            void SyncUsersToSessionManager(K2B.SessionManager.SessionManagerClient target, string backendAddress, Metadata headers);
         }
         internal class PushStreamDb
             : IPushable
@@ -148,7 +167,20 @@ namespace K2svc.Frontend
 
             public bool IsConnected(string userId)
             {
-                return users.ContainsKey(userId);
+                lock (users)
+                    return users.ContainsKey(userId);
+            }
+
+            public void SyncUsersToSessionManager(K2B.SessionManager.SessionManagerClient target, string backendAddress, Metadata headers)
+            { // SessionManager 가 연결이 끊겼다가 복구 되었을 경우에만 사용. 이 인터페이스는 마음에 들지 않은데..
+                lock (users) // SessionManager 에 모든 정보가 입력되기 전까지 local 의 users 가 변경되어서는 안된다.
+                    foreach (var u in users)
+                    {
+                        // 동기화를 유지하기 위해 lock 이 걸려있는상태에서 비동기를 사용할 수는 없다.
+                        // 해당 channel 이 사용가능한지 미리 응답을 받을 수 있다면 좋을텐데...
+                        target.AddUser(new K2B.AddUserRequest { Force = true, UserId = u.Value.Id, BackendListeningAddress = backendAddress }
+                        , headers: headers, deadline: DateTime.UtcNow.AddSeconds(0.5));
+                    }
             }
             #endregion
 

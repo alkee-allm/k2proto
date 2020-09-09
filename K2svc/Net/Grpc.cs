@@ -8,10 +8,14 @@ namespace K2svc.Net
     /// <summary>
     ///     channel 및 Grpc client 재사용을 위한 channel, client 관리자
     /// </summary>
+    /// <exception cref="RpcException">입력값(backendAddress)가 공백이나 null 인 경우</exception>
     public class GrpcClients
     { // https://docs.microsoft.com/aspnet/core/grpc/performance?view=aspnetcore-3.1
         public T GetClient<T>(string backendAddress) where T : ClientBase
         {
+            if (string.IsNullOrEmpty(backendAddress)) // 개발 편의를 위해 RpcException 사용(사용하는쪽에서 반환된 client 와 함께 try 로 묶어서 사용 가능)
+                throw new RpcException(new Status(StatusCode.Unavailable, "empty channel address"));
+
             var channel = GetChannel(backendAddress);
             lock (clients)
             {

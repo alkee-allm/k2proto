@@ -89,10 +89,10 @@ namespace K2svc.Background
                 PublicIp = Util.GetPublicIp(), // backend 전용인 경우 null
                 ServiceScheme = config.ServiceScheme,
 
-                HasServerManagement = config.RemoteServerManagerAddress == null,
+                HasServerManager = config.RemoteServerManagerAddress == null,
 
                 // backend unique services
-                HasUserSession = config.EnableUserSessionBackend,
+                HasSessionManager = config.EnableSessionManager,
 
                 // frontend services
                 HasPush = config.EnablePushSampleService,
@@ -107,13 +107,13 @@ namespace K2svc.Background
                 if (rsp.Result == RegisterResponse.Types.ResultType.Ok)
                 {
                     config.RemoteServerManagerAddress = rsp.ServerManagementAddress; // 시작환경에 의해 고정되기때문에 의미 없을 것.
-                    config.UserSessionBackendAddress = rsp.UserSessionAddress;
+                    config.SessionManagerAddress = rsp.UserSessionAddress;
 
                     config.BackendListeningAddress = rsp.BackendListeningAddress; // Register 에 의해 private IP 가 결정되기때문에 이 이후부터 사용 가능.
                     config.Registered = true;
                     return true;
                 }
-                logger.LogInformation("Server Management backend is not ready");
+                logger.LogWarning($"Unable to register this server to ServerManager : {rsp.Result}");
             }
             catch (RpcException e)
             {

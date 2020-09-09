@@ -44,10 +44,11 @@ namespace K2svc.Frontend
             // 메시지를 전달할 대상(client)이 어느 서버에 연결되어있는지 알 수 없는 경우
             //    UserSessionBackend 를 통해 메시지를 전달(push) 하는 예시
 
-            var (userId, pushBackendAddress) = Session.GetUserInfoOrThrow(context);
+            var (userId, _) = Session.GetUserInfoOrThrow(context);
 
             // UserSessionService 를 통해 메시지 보내기
-            var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.UserSessionBackendAddress);
+            // 전달 이후 별다른 동작이 없으므로 별도의 예외처리 하지 않음
+            var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.SessionManagerAddress);
             var result = await client.PushAsync(new K2B.PushRequest
             {
                 TargetUserId = request.Target,
@@ -58,7 +59,7 @@ namespace K2svc.Frontend
                     Extra = userId
                 }
             }, header);
-            logger.LogInformation($"kick result = {result.Result}");
+            logger.LogInformation($"push result = {result.Result}");
 
             return new Null();
         }
@@ -90,7 +91,7 @@ namespace K2svc.Frontend
         {
             // 다른 user 에게 명령을 수행하는 예시. 이 경우 연결이 끊어지도록 하는 명령 예시
 
-            var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.UserSessionBackendAddress);
+            var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.SessionManagerAddress);
             var result = await client.KickUserAsync(new K2B.KickUserRequest { UserId = request.Target }, header);
             logger.LogInformation($"kick result = {result.Result}");
 

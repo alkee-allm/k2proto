@@ -91,7 +91,7 @@ namespace K2svc
 
                 // backend services(managers)
                 if (cfg.RemoteServerManagerAddress == null) endpoints.MapGrpcService<Backend.ServerManagerBackend>();
-                if (cfg.EnableUserSessionBackend) { endpoints.MapGrpcService<Backend.SessionManagerBackend>(); }
+                if (cfg.EnableSessionManager) { endpoints.MapGrpcService<Backend.SessionManagerBackend>(); }
 
                 // hosts(backend client to backend service)
                 // backend server 의 명령(push)을 받을 backend host 들 ; disable 될 수 없다.(항상 backend server push 를 받아야 한다)
