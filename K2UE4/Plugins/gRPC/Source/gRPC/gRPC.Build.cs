@@ -16,6 +16,11 @@ public class gRPC : ModuleRules
         get { return Path.GetFullPath(Path.Combine(ModulePath, "../ThirdParty/")); }
     }
 
+	private string GetUProjectPath
+    {
+		get { return Path.Combine(PluginDirectory, "../.."); }
+    }
+
     public gRPC(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
@@ -91,7 +96,9 @@ public class gRPC : ModuleRules
 					PublicDelayLoadDLLs.Add(file.Name);
 
 					// Ensure that the DLL is staged along with the executable
-					RuntimeDependencies.Add(Path.Combine(PluginDirectory, "Binaries/ThirdParty/gRPC/Win64", file.Name));
+					RuntimeDependencies.Add("$(TargetOutputDir)/" + file.Name, Path.Combine(PluginDirectory, "Source/ThirdParty", libraryDir, "bin", file.Name));
+
+					File.Copy(Path.Combine(PluginDirectory, "Source/ThirdParty", libraryDir, "bin", file.Name), Path.Combine(GetUProjectPath, "Binaries/Win64/", file.Name), true);
 				}
             }
 
