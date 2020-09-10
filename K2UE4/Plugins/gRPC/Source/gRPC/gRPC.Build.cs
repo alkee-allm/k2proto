@@ -88,7 +88,7 @@ public class gRPC : ModuleRules
                 foreach (FileInfo file in DLLFiles)
                 {
 					// Delay-load the DLL, so we can load it from the right place first
-					PublicDelayLoadDLLs.Add(Path.Combine(DLLPaths, file.Name));
+					PublicDelayLoadDLLs.Add(file.Name);
 
 					// Ensure that the DLL is staged along with the executable
 					RuntimeDependencies.Add(Path.Combine(PluginDirectory, "Binaries/ThirdParty/gRPC/Win64", file.Name));
