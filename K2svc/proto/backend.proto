@@ -18,6 +18,7 @@ service ServerManager {
 service ServerHost { // from ServerManager 
 	rpc Stop (StopRequest) returns (Null); // 종료 명령
 	rpc Broadcast (PushRequest) returns (Null);
+	rpc UpdateBackend (UpdateBackendRequest) returns (Null);
 }
 
 service SessionManager {
@@ -33,7 +34,7 @@ service SessionHost { // from SessionManager
 }
 
 
-// Messages
+// Common messages
 message PushRequest {
 	message PushResponse { // K2.PushResponse
 		enum PushType {
@@ -48,11 +49,10 @@ message PushRequest {
 	}
 
 	string targetUserId = 1;
-	// K2.PushResponse pushMessage = 2;
 	PushResponse pushMessage = 2;
 }
 
-// ServerManagement ///////////////////////////////////////////////////////////
+// ServerManager /////////////////////////////////////////////////////////////
 message RegisterRequest { // 서버가 시작되면 실행환경 정보와 함께 요청
 	string version = 1;
 
@@ -62,8 +62,8 @@ message RegisterRequest { // 서버가 시작되면 실행환경 정보와 함�
 	string serviceScheme = 14; // "http" or "https"
 
 	// backend unique service
-	bool hasServerManagement = 21;
-	bool hasUserSession = 22;
+	bool hasServerManager = 21;
+	bool hasSessionManager = 22;
 
 	// frontend Services
 	bool hasPush = 31;
@@ -117,13 +117,19 @@ message PingRequest {
 message PingResponse {
 	bool ok = 1; // false 인 경우 정책에 따라 서비스를 종료하거나, 다시 register 하거나 등등
 }
+///////////////////////////////////////////////////////////// ServerManager //
 
+// ServerHost ////////////////////////////////////////////////////////////////
 message StopRequest {
 	string reason = 1;
 }
-/////////////////////////////////////////////////////////// ServerManagement //
 
-// UserSession ////////////////////////////////////////////////////////////////
+message UpdateBackendRequest {
+	string SessionManagerAddress = 1; // session manager 를 사용할 수 없는 경우 공백
+}
+//////////////////////////////////////////////////////////////// ServerHost //
+
+// SessionManager ////////////////////////////////////////////////////////////
 message AddUserRequest {
 	string backendListeningAddress = 1; // push backend
 	string userId = 3;
@@ -157,18 +163,6 @@ message RemoveUserResponse {
 	ResultType result = 1;
 }
 
-message IsOnlineRequest {
-	string userId = 1;
-}
-
-message IsOnlineResponse {
-	enum ResultType {
-		ONLINE = 0;
-		OFFLINE = 1;
-	}
-	ResultType result = 1;
-}
-
 message PushResponse {
 	enum ResultType {
 		OK = 0;
@@ -192,4 +186,18 @@ message KickUserResponse {
 	}
 	ResultType result = 1;
 }
-//////////////////////////////////////////////////////////////// UserSession //
+//////////////////////////////////////////////////////////// SessionManager //
+
+// SessionHost ///////////////////////////////////////////////////////////////
+message IsOnlineRequest {
+	string userId = 1;
+}
+
+message IsOnlineResponse {
+	enum ResultType {
+		ONLINE = 0;
+		OFFLINE = 1;
+	}
+	ResultType result = 1;
+}
+/////////////////////////////////////////////////////////////// SessionHost //

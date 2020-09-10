@@ -57,22 +57,19 @@ namespace K2svc.Background
 
         private async void OnTime(object state) // event handler 이므로 async Task 가 아닌 async void
         {
-            if (workCount > 0)
+            var cnt = Interlocked.Increment(ref workCount);
+
+            if (cnt > 1)
             {
-                logger.LogWarning($"ServerManagement timer is busy({workCount})");
-                var cnt = Interlocked.Increment(ref workCount);
-                if (cnt == 1) // timer 끝나자마자 increament 실행된 경우.
-                {
-                    Interlocked.Exchange(ref workCount, 0);
-                }
+                logger.LogWarning($"ServerManagement timer is busy({cnt - 1})");
                 return;
             }
 
-            Interlocked.Exchange(ref workCount, 1);
             using (new Defer(() => { Interlocked.Exchange(ref workCount, 0); }))
             {
                 if (currentState == State.REGISTERING && await Register())
                 {
+                    logger.LogInformation($"server registered to ServerManager : {config.ServerManagerAddress}");
                     currentState = State.PINGING;
                 }
                 else if (currentState == State.PINGING && await Ping())
@@ -83,7 +80,7 @@ namespace K2svc.Background
 
         private async Task<bool> Register()
         {
-            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
+            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagerAddress);
             var req = new RegisterRequest
             {
                 Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
@@ -92,10 +89,10 @@ namespace K2svc.Background
                 PublicIp = Util.GetPublicIp(), // backend 전용인 경우 null
                 ServiceScheme = config.ServiceScheme,
 
-                HasServerManagement = config.ServerManagementBackendAddress == null,
+                HasServerManager = config.RemoteServerManagerAddress == null,
 
                 // backend unique services
-                HasUserSession = config.EnableUserSessionBackend,
+                HasSessionManager = config.EnableSessionManager,
 
                 // frontend services
                 HasPush = config.EnablePushSampleService,
@@ -109,25 +106,25 @@ namespace K2svc.Background
                 var rsp = await client.RegisterAsync(req, header);
                 if (rsp.Result == RegisterResponse.Types.ResultType.Ok)
                 {
-                    config.ServerManagementBackendAddress = rsp.ServerManagementAddress; // 시작환경에 의해 고정되기때문에 의미 없을 것.
-                    config.UserSessionBackendAddress = rsp.UserSessionAddress;
+                    config.RemoteServerManagerAddress = rsp.ServerManagementAddress; // 시작환경에 의해 고정되기때문에 의미 없을 것.
+                    config.SessionManagerAddress = rsp.UserSessionAddress;
 
                     config.BackendListeningAddress = rsp.BackendListeningAddress; // Register 에 의해 private IP 가 결정되기때문에 이 이후부터 사용 가능.
                     config.Registered = true;
                     return true;
                 }
-                logger.LogInformation("Server Management backend is not ready");
+                logger.LogWarning($"Unable to register this server to ServerManager : {rsp.Result}");
             }
             catch (RpcException e)
             {
-                logger.LogWarning($"ERROR on register : {e.Status.Detail}");
+                logger.LogWarning($"ERROR on register to {config.ServerManagerAddress} : {e.Status.Detail}");
             }
             return false;
         }
 
         private async Task<bool> Ping()
         {
-            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagementBackendAddress ?? DefaultValues.SERVER_MANAGEMENT_BACKEND_ADDRESS);
+            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagerAddress);
 
             var req = new PingRequest
             {
@@ -148,8 +145,10 @@ namespace K2svc.Background
                 {
                     return true;
                 }
-                logger.LogInformation("Server Management backend not OK ping back.");
-                // TODO: 다시 register ?
+                logger.LogInformation("Server Manager responded NOT OK(unregistered)");
+                // set to reregister
+                config.Registered = false;
+                currentState = State.REGISTERING;
             }
             catch (RpcException e)
             {

@@ -18,9 +18,9 @@ namespace K2svc.Backend
         private static List<Server> servers = new List<Server>(); // server 수가 많지 않고, register/unregister 가 빈번하지 않으므로 별도의 index 는 필요 없을 것
 
         #region internal states for ServerManager
-        private static object internalStateGuard = new object();
-        private static string serverManagementBackendAddress = null;
-        private static string userSessionBackendAddress = null;
+        private static string SERVER_NOT_EXIST = ""; // null 의 의미이지만 gRPC message 에 string null 을 사용할 수 없음('System.ArgumentNullException'(Google.Protobuf.dll))
+        private static string serverManagerAddress = SERVER_NOT_EXIST;
+        private static string sessionManagerAddress = SERVER_NOT_EXIST;
         #endregion
 
         public ServerManagerBackend(ILogger<ServerManagerBackend> _logger,
@@ -46,8 +46,8 @@ namespace K2svc.Backend
                 PublicIpAddress = request.PublicIp,
                 ServiceScheme = request.ServiceScheme,
                 PrivateIpAddress = Util.GetGrpcPeerIp(context),
-                HasServerManagement = request.HasServerManagement,
-                HasUserSession = request.HasUserSession,
+                HasServerManager = request.HasServerManager,
+                HasSessionManager = request.HasSessionManager,
 
                 HasPush = request.HasPush,
                 HasInit = request.HasInit,
@@ -72,7 +72,7 @@ namespace K2svc.Backend
             {
                 // 서비스 주소는 netwrok 내에서 중복되지 않아야 함
                 if (servers.Any((s) => s.BackendListeningAddress == server.BackendListeningAddress))
-                {
+                { // 아직 ping timeout 처리가 완료되지 않은 상태일 수 있다.
                     rsp.Result = RegisterResponse.Types.ResultType.DuplicatedBackendListeningAddress;
                     return Task.FromResult(rsp);
                 }
@@ -83,12 +83,12 @@ namespace K2svc.Backend
                 }
 
                 // unique backend services 는 network 내에서 유일해야 함
-                if (request.HasServerManagement && servers.Any((s) => s.HasServerManagement))
+                if (request.HasServerManager && servers.Any((s) => s.HasServerManager))
                 {
                     rsp.Result = RegisterResponse.Types.ResultType.AlreadyHasServerManagement;
                     return Task.FromResult(rsp);
                 }
-                if (request.HasUserSession && servers.Any((s) => s.HasUserSession))
+                if (request.HasSessionManager && servers.Any((s) => s.HasSessionManager))
                 {
                     rsp.Result = RegisterResponse.Types.ResultType.AlreadyHasUserSeesion;
                     return Task.FromResult(rsp);
@@ -102,8 +102,8 @@ namespace K2svc.Backend
             // response
             rsp.Result = RegisterResponse.Types.ResultType.Ok;
             rsp.BackendListeningAddress = server.BackendListeningAddress;
-            rsp.ServerManagementAddress = serverManagementBackendAddress;
-            rsp.UserSessionAddress = userSessionBackendAddress;
+            rsp.ServerManagementAddress = serverManagerAddress;
+            rsp.UserSessionAddress = sessionManagerAddress;
             return Task.FromResult(rsp);
         }
 
@@ -174,7 +174,7 @@ namespace K2svc.Backend
             lock (servers) all = new List<Server>(servers);
             foreach (var s in all)
             {
-                if (string.IsNullOrEmpty(s.BackendListeningAddress)) continue;
+                if (s.HasPush == false) continue;
                 var client = clients.GetClient<ServerHost.ServerHostClient>(s.BackendListeningAddress);
                 await client.BroadcastAsync(request, header);
             }
@@ -182,29 +182,50 @@ namespace K2svc.Backend
         }
         #endregion
 
+        private void BroadcastUpdateBackend()
+        {
+            List<Server> targets;
+            lock (servers) targets = servers.ToList();
+            var req = new UpdateBackendRequest { SessionManagerAddress = sessionManagerAddress };
+            foreach (var t in targets)
+            {
+                try
+                {
+                    var c = clients.GetClient<ServerHost.ServerHostClient>(t.BackendListeningAddress);
+                    c.UpdateBackendAsync(req, headers: header);
+                }
+                catch(RpcException ex)
+                {
+                    logger.LogWarning($"Error on UpdateBackend of {t.ServerId} : {ex.Message}");
+                }
+            }
+        }
+
         private void OnServerAdd(Server server)
         {
             // unique backend service 가 연결된 경우 관리서버의 설정을 업데이트
-            lock (internalStateGuard)
+            if (server.HasServerManager) serverManagerAddress = server.BackendListeningAddress; // 자기자신(ServerManager) 이기때문에 변경될일은 없다
+            if (server.HasSessionManager)
             {
-                if (server.HasServerManagement) serverManagementBackendAddress = server.BackendListeningAddress;
-                if (server.HasUserSession) userSessionBackendAddress = server.BackendListeningAddress;
+                sessionManagerAddress = server.BackendListeningAddress;
+                BroadcastUpdateBackend();
             }
         }
 
         private void OnServerRemove(Server server)
         {
             // backend unique server 인 경우 상태 정보 업데이트
-            lock (internalStateGuard)
+            if (server.HasServerManager) serverManagerAddress = SERVER_NOT_EXIST; // 자기자신(ServerManager) 이기때문에 불가능한 상황이지만..
+            if (server.HasSessionManager)
             {
-                if (server.HasServerManagement) serverManagementBackendAddress = null;
-                if (server.HasUserSession) userSessionBackendAddress = null;
+                sessionManagerAddress = SERVER_NOT_EXIST;
+                BroadcastUpdateBackend();
             }
         }
 
         private void OnServerPingTimeOut(Server server)
         {
-            logger.LogWarning($"PING TIMED-OUT server {server.ServerId}({server.FrontendListeningAddress}/{server.BackendListeningAddress})");
+            logger.LogWarning($"PING TIMEDOUT server {server.ServerId}\n\tfrontend: {server.FrontendListeningAddress}\n\tbackend: {server.BackendListeningAddress}");
 
             // ping timoue 이더라도 backed 가 살아있을 수 있으므로 강제 종료시켜, 사용자 및 서버의 데이터가 일치하지 않아
             //  발생할 수 있는 예측불가능한 문제를 차단
@@ -234,8 +255,8 @@ namespace K2svc.Backend
             public string PublicIpAddress { get; set; } // null 인 경우 backend 전용
             public string PrivateIpAddress { get; set; }
             // backend services
-            public bool HasServerManagement { get; set; }
-            public bool HasUserSession { get; set; }
+            public bool HasServerManager { get; set; }
+            public bool HasSessionManager { get; set; }
 
             // frontend services
             public bool HasPush { get; set; }
