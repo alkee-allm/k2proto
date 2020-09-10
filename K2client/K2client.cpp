@@ -128,6 +128,11 @@ int main(int argc, char** argv)
 		K2::StateResponse rsp;
 		grpc::ClientContext context;
 		auto status = initStub.State(&context, empty, &rsp);
+		if (status.error_code() == grpc::UNKNOWN)
+		{ // server 가 아직 준비되지 않은 상태(not registered)이면 UNKNOWN status 반환
+			cout << "server is not ready yet" << endl;
+			return 1;
+		}
 		throwOnError(status);
 
 		cout << "service version  = " << rsp.version() << "\n"

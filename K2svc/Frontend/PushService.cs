@@ -118,7 +118,7 @@ namespace K2svc.Frontend
             bool Disconnect(string targetUserId);
             bool IsConnected(string targetUserId);
 
-            void SyncUsersToSessionManager(K2B.SessionManager.SessionManagerClient target, string backendAddress, Metadata headers);
+            void SyncUsersToSessionManager(K2B.SessionManager.SessionManagerClient target, string backendAddress, Metadata headers, ILogger logger);
         }
         internal class PushStreamDb
             : IPushable
@@ -171,16 +171,23 @@ namespace K2svc.Frontend
                     return users.ContainsKey(userId);
             }
 
-            public void SyncUsersToSessionManager(K2B.SessionManager.SessionManagerClient target, string backendAddress, Metadata headers)
+            public void SyncUsersToSessionManager(K2B.SessionManager.SessionManagerClient target, string backendAddress, Metadata headers, ILogger logger)
             { // SessionManager 가 연결이 끊겼다가 복구 되었을 경우에만 사용. 이 인터페이스는 마음에 들지 않은데..
-                lock (users) // SessionManager 에 모든 정보가 입력되기 전까지 local 의 users 가 변경되어서는 안된다.
-                    foreach (var u in users)
-                    {
-                        // 동기화를 유지하기 위해 lock 이 걸려있는상태에서 비동기를 사용할 수는 없다.
-                        // 해당 channel 이 사용가능한지 미리 응답을 받을 수 있다면 좋을텐데...
-                        target.AddUser(new K2B.AddUserRequest { Force = true, UserId = u.Value.Id, BackendListeningAddress = backendAddress }
-                        , headers: headers, deadline: DateTime.UtcNow.AddSeconds(0.5));
-                    }
+                try
+                {
+                    lock (users) // SessionManager 에 모든 정보가 입력되기 전까지 local 의 users 가 변경되어서는 안된다.
+                        foreach (var u in users)
+                        {
+                            // 동기화를 유지하기 위해 lock 이 걸려있는상태에서 비동기를 사용할 수는 없다.
+                            // 해당 channel 이 사용가능한지 미리 응답을 받을 수 있다면 좋을텐데...
+                            target.AddUser(new K2B.AddUserRequest { Force = true, UserId = u.Value.Id, BackendListeningAddress = backendAddress }
+                            , headers: headers, deadline: DateTime.UtcNow.AddSeconds(0.5));
+                        }
+                }
+                catch (RpcException ex)
+                {
+                    logger.LogWarning($"failed to sync users : {ex.Message}");
+                }
             }
             #endregion
 
