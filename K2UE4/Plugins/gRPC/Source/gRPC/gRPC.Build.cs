@@ -64,9 +64,16 @@ public class gRPC : ModuleRules
 			}
 			);
 
-		LoadVCPKGThirdPartyLibrary("protobuf", Target, true);
+        PublicDefinitions.Add("GOOGLE_PROTOBUF_NO_RTTI");
+        PublicDefinitions.Add("GPR_FORBID_UNREACHABLE_CODE");
+        PublicDefinitions.Add("GRPC_ALLOW_EXCEPTIONS=0");
+        LoadVCPKGThirdPartyLibrary("protobuf", Target, true);
 		LoadVCPKGThirdPartyLibrary("grpc", Target);
-        PublicDefinitions.Add(string.Format("WITH_GRPC_BINDING=1"));
+
+		PublicDefinitions.Add("WITH_GRPC_BINDING=1");
+
+        AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
+        AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
     }
 
     public void LoadVCPKGThirdPartyLibrary(string libraryName, ReadOnlyTargetRules Target, bool dynamic = false)
