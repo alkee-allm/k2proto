@@ -7,11 +7,16 @@ namespace K2svc.Db
     public class AccountDb
         : DbContext // https://docs.microsoft.com/ko-kr/ef/core/miscellaneous/configuring-dbcontext
     {
+        public class Config
+        {
+            public string DatabaseFileName { get; set; } = "sample.sqlite3";
+        }
+
         public DbSet<Account> Accounts { get; set; }
 
-        public AccountDb(ServiceConfiguration _config)
+        public AccountDb(K2Config _localConfig)
         {
-            config = _config;
+            localConfig = _localConfig;
             Database.EnsureCreated();
 
 #if DEBUG
@@ -33,7 +38,7 @@ namespace K2svc.Db
         protected override void OnConfiguring(DbContextOptionsBuilder builder)
         {
             // database provider 선택 ; 하드코딩없이 간편하게 
-            builder.UseSqlite($"filename={config.DatabaseFileName}", options =>
+            builder.UseSqlite($"filename={localConfig.AccountDb.DatabaseFileName}", options =>
             {
                 options.MigrationsAssembly(Assembly.GetExecutingAssembly().FullName);
             });
@@ -50,7 +55,7 @@ namespace K2svc.Db
         }
         #endregion
 
-        private readonly ServiceConfiguration config;
+        private readonly K2Config localConfig;
     }
 
 }

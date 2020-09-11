@@ -17,15 +17,26 @@ namespace K2svc.Frontend
     public class PushService
         : Push.PushBase
     {
+        public class Config
+        {
+            public int StreamResponseDelayMillisecond { get; set; } = 200;
+        }
+
         private readonly ILogger<PushService> logger;
-        private readonly ServiceConfiguration config;
+        private readonly K2Config localConfig;
+        private readonly RemoteConfig remoteConfig;
         private readonly Metadata header;
         private readonly Net.GrpcClients clients;
 
-        public PushService(ILogger<PushService> _logger, ServiceConfiguration _config, Metadata _header, Net.GrpcClients _clients)
+        public PushService(ILogger<PushService> _logger,
+            K2Config _localConfig,
+            RemoteConfig _remoteConfig,
+            Metadata _header,
+            Net.GrpcClients _clients)
         {
             logger = _logger;
-            config = _config;
+            localConfig = _localConfig;
+            remoteConfig = _remoteConfig;
             header = _header;
             clients = _clients;
         }
@@ -40,14 +51,14 @@ namespace K2svc.Frontend
 
             try
             {
-                var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.SessionManagerAddress);
+                var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(remoteConfig.SessionManagerAddress);
                 var addUserResult = await client.AddUserAsync(new K2B.AddUserRequest
                 {
                     Force = true, // 항상 성공
-                    BackendListeningAddress = config.BackendListeningAddress,
+                    BackendListeningAddress = remoteConfig.BackendListeningAddress,
                     UserId = userId,
                 }, header);
-                logger.LogInformation($"adding user({userId}) {addUserResult.Result} to session backend : {config.BackendListeningAddress}");
+                logger.LogInformation($"adding user({userId}) {addUserResult.Result} to session backend : {remoteConfig.BackendListeningAddress}");
             }
             catch (RpcException ex)
             {
@@ -62,13 +73,13 @@ namespace K2svc.Frontend
             {
                 Type = PushResponse.Types.PushType.Config,
                 Message = "jwt",
-                Extra = GenerateJwtToken(userId, config.BackendListeningAddress) // new JWT
+                Extra = GenerateJwtToken(userId, remoteConfig.BackendListeningAddress) // new JWT
             });
 
             while (!context.CancellationToken.IsCancellationRequested & !streamCanceller.IsCancellationRequested)
             { // holding up the stream
                 await Task
-                    .Delay(DefaultValues.STREAM_RESPONSE_TIME_MILLISECOND) // 간편한 방법. awaiter 를 추가해 구현하려면 ; https://medium.com/@cilliemalan/how-to-await-a-cancellation-token-in-c-cbfc88f28fa2
+                    .Delay(localConfig.PushService.StreamResponseDelayMillisecond) // 간편한 방법. awaiter 를 추가해 구현하려면 ; https://medium.com/@cilliemalan/how-to-await-a-cancellation-token-in-c-cbfc88f28fa2
                     .ConfigureAwait(false); // 어느 thread 에서나 task 실행 가능
             }
             if (streamCanceller.IsCancellationRequested == false) streamCanceller.Cancel();
@@ -78,8 +89,8 @@ namespace K2svc.Frontend
             // session server 가 변경되었을 수 있기 때문에 다시 할당
             try
             {
-                var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.SessionManagerAddress);
-                var removeUserResult = await client.RemoveUserAsync(new K2B.RemoveUserRequest { BackendListeningAddress = config.BackendListeningAddress, UserId = userId }, header);
+                var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(remoteConfig.SessionManagerAddress);
+                var removeUserResult = await client.RemoveUserAsync(new K2B.RemoveUserRequest { BackendListeningAddress = remoteConfig.BackendListeningAddress, UserId = userId }, header);
                 logger.LogInformation($"removing user({userId}) to session backend : {removeUserResult}");
             }
             catch (RpcException ex)

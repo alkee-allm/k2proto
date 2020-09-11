@@ -11,8 +11,14 @@ namespace K2svc.Backend
     public class ServerManagerBackend
         : ServerManager.ServerManagerBase
     {
+        public class Config
+        {
+            public double PingTimeOutSec { get; set; } = 3.0;
+        }
+
         private readonly ILogger<ServerManagerBackend> logger;
         private readonly Metadata header;
+        private readonly K2Config localConfig;
         private readonly Net.GrpcClients clients;
 
         private static List<Server> servers = new List<Server>(); // server 수가 많지 않고, register/unregister 가 빈번하지 않으므로 별도의 index 는 필요 없을 것
@@ -25,14 +31,13 @@ namespace K2svc.Backend
 
         public ServerManagerBackend(ILogger<ServerManagerBackend> _logger,
             Metadata _header,
+            K2Config _localConfig,
+            RemoteConfig _, // RemoteConfig 사용금지. ServerManager 는 다른 서비스로 RemoteConfig 를 전파만 해야하고 사용해서는 안된다.
             Net.GrpcClients _clients)
         {
-            // ** ServiceConfiguration 사용 금지 **
-            //   ServerManagement 가 다른 서비스들과 함께 서비스 될 수 있기 때문에 ServiceConfiguration 을 사용하게되면
-            //   단독으로 사용되는 경우와 설정이 달라지는 상황(singleton)에 대한 디버깅이나 구현이 어렵다.
-
             logger = _logger;
             header = _header;
+            localConfig = _localConfig;
             clients = _clients;
         }
 
@@ -150,7 +155,7 @@ namespace K2svc.Backend
                 servers.Insert(0, server);
 
                 // find timed out servers
-                var expried = DateTime.Now.Subtract(TimeSpan.FromSeconds(DefaultValues.SERVER_MANAGEMENT_PING_TIMEOUT_SECONDS));
+                var expried = DateTime.Now.Subtract(TimeSpan.FromSeconds(localConfig.ServerManager.PingTimeOutSec));
                 while (servers.Count > 0 && servers.Last().LastPingTime < expried)
                 {
                     timedOutServers.Add(servers.Last());
@@ -194,7 +199,7 @@ namespace K2svc.Backend
                     var c = clients.GetClient<ServerHost.ServerHostClient>(t.BackendListeningAddress);
                     c.UpdateBackendAsync(req, headers: header);
                 }
-                catch(RpcException ex)
+                catch (RpcException ex)
                 {
                     logger.LogWarning($"Error on UpdateBackend of {t.ServerId} : {ex.Message}");
                 }

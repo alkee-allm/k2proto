@@ -12,6 +12,10 @@ namespace K2svc.Frontend
 {
     public class InitService : Init.InitBase
     {
+        public class Config
+        {
+        }
+
         private readonly ILogger<InitService> logger;
         private readonly Db.AccountDb accountDb;
 

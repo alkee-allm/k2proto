@@ -5,17 +5,6 @@ using System.Text;
 
 namespace K2svc
 {
-    public static class DefaultValues
-    {
-        public static readonly string APP_SETTINGS_FILENAME = "appsettings.json";
-        public static readonly string APP_SETTINGS_OVERRIDE_FILENAME = $"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json";
-        public static readonly string SERVICE_IP = "localhost";
-        public static readonly int LISTENING_PORT = 9060;
-        public static readonly double SERVER_MANAGEMENT_PING_INTERVAL_SECONDS = 1.0;
-        public static readonly double SERVER_MANAGEMENT_PING_TIMEOUT_SECONDS = 3.0;
-        public static readonly int STREAM_RESPONSE_TIME_MILLISECOND = 200;
-    }
-
     public static class Security
     {
         private static string VERSION = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(2); // major.minor

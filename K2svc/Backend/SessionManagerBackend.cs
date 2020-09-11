@@ -9,6 +9,10 @@ namespace K2svc.Backend
     public class SessionManagerBackend
         : SessionManager.SessionManagerBase
     {
+        public class Config
+        {
+        }
+
         private readonly ILogger<SessionManagerBackend> logger;
         private readonly Metadata header;
         private readonly Net.GrpcClients clients;

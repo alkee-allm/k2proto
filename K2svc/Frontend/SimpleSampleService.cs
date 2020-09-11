@@ -9,14 +9,16 @@ namespace K2svc.Frontend
     [Authorize]
     public class SimpleSampleService : SimpleSample.SimpleSampleBase
     {
+        public class Config
+        {
+        }
+
         private readonly ILogger<SimpleSampleService> logger;
-        private readonly ServiceConfiguration config;
         private readonly Metadata header;
 
-        public SimpleSampleService(ILogger<SimpleSampleService> _logger, ServiceConfiguration _config, Metadata _header)
+        public SimpleSampleService(ILogger<SimpleSampleService> _logger, Metadata _header)
         {
             logger = _logger;
-            config = _config;
             header = _header;
         }
 
