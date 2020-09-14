@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using UnrealBuildTool;
 
 public class gRPC : ModuleRules
@@ -11,7 +12,12 @@ public class gRPC : ModuleRules
 		get { return ModuleDirectory; }
 	}
 
-	private string ThirdPartyPath
+    private string SourcePath
+    {
+        get { return Path.GetFullPath(Path.Combine(ModulePath, "../")); }
+    }
+
+    private string ThirdPartyPath
 	{
 		get { return Path.GetFullPath(Path.Combine(ModulePath, "../ThirdParty/")); }
 	}
@@ -32,7 +38,6 @@ public class gRPC : ModuleRules
 
 		return "";
 	}
-
 
 	public gRPC(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -77,15 +82,34 @@ public class gRPC : ModuleRules
 			}
 			);
 
-		// Generate gRPC code
-		string ProtobufToolPath = Path.Combine(ThirdPartyPath, GetVCPKGLibraryDirectoryName("protobuf"), "tools/protobuf");
-		string gRPCToolPath = Path.Combine(ThirdPartyPath, GetVCPKGLibraryDirectoryName("gRPC"), "tools/grpc");
-		string SourcePath = Path.Combine(GetUProjectPath, "../proto");
-		string TargetPath = Path.Combine(GetUProjectPath, "Source/K2UE4/proto");
+        // Generate gRPC code
+        string ProtobufToolPath = Path.Combine(ThirdPartyPath, GetVCPKGLibraryDirectoryName("protobuf"), "tools/protobuf");
+        string gRPCToolPath = Path.Combine(ThirdPartyPath, GetVCPKGLibraryDirectoryName("gRPC"), "tools/grpc");
+        string ProtobufSourcePath = Path.Combine(GetUProjectPath, "../proto");
+        string SaveTargetPath = Path.Combine(GetUProjectPath, "Source/K2UE4/proto");
 
-		string Arguments = String.Format("-I {0} --cpp_out={1} --grpc_out={1} --plugin=protoc-gen-grpc={2} {0}/sample.proto", SourcePath, TargetPath, Path.Combine(gRPCToolPath, "grpc_cpp_plugin.exe"));
-		System.Diagnostics.Process.Start(Path.Combine(ProtobufToolPath, "protoc.exe"), Arguments);
+        string Arguments = String.Format("-I {0} --cpp_out={1} --grpc_out={1} --plugin=protoc-gen-grpc={2} {0}/sample.proto", ProtobufSourcePath, SaveTargetPath, Path.Combine(gRPCToolPath, "grpc_cpp_plugin.exe"));
+        System.Diagnostics.Process.Start(Path.Combine(ProtobufToolPath, "protoc.exe"), Arguments);
 
+        // Merge template codes to gRPC generated code
+        string[] BeginTemplateCode = File.ReadAllLines(Path.Combine(SourcePath, "BeginTemplate.txt"));
+        string[] EndTemplateCode = File.ReadAllLines(Path.Combine(SourcePath, "EndTemplate.txt"));
+
+        DirectoryInfo TargetDirectoryInfo = new DirectoryInfo(SaveTargetPath);
+        FileInfo[] gRPCGeneratedCodeFiles = TargetDirectoryInfo.GetFiles("*.cc");
+        foreach (FileInfo file in gRPCGeneratedCodeFiles)
+        {
+            string[] RawList = File.ReadAllLines(file.FullName);
+
+			System.IO.StreamWriter OutputSW = new System.IO.StreamWriter(file.FullName, false);
+			OutputSW.Write(BeginTemplateCode);
+            OutputSW.Write(RawList);
+            OutputSW.Write(EndTemplateCode);
+            OutputSW.Close();
+        }
+		Console.WriteLine("gRPC complete");
+
+        // Register Third-Party libraries
         PublicDefinitions.Add("GOOGLE_PROTOBUF_NO_RTTI");
         PublicDefinitions.Add("GPR_FORBID_UNREACHABLE_CODE");
         PublicDefinitions.Add("GRPC_ALLOW_EXCEPTIONS=0");
