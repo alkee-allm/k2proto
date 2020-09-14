@@ -50,8 +50,8 @@ namespace K2svc.Frontend
             return Task.FromResult(new StateResponse
             {
                 Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0.0",
-                // TODO: server management service 로부터 알맞은(가장 한산한?) 서버 전송
-                Gateway = "https://localhost:5001"
+                ServiceStatus = "GOOD",
+                Announcement = "WELCOME"
             });
         }
         #endregion

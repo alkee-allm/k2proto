@@ -49,13 +49,16 @@ namespace K2svc.Backend
         public override Task<Null> UpdateBackend(UpdateBackendRequest request, ServerCallContext context)
         {
             logger.LogInformation($"Updating SessionManager {config.SessionManagerAddress} to {request.SessionManagerAddress} ");
+            if (config.SessionManagerAddress == request.SessionManagerAddress) // ServerManager 가 복구된 경우 ServerManager 가 SessionServer 의 정보를 알수가 없어 UpdateBackend 를 보낼 수 있다.
+                return Task.FromResult(new Null()); 
+
             config.SessionManagerAddress = request.SessionManagerAddress;
 
             if (string.IsNullOrEmpty(request.SessionManagerAddress) == false // SessionManager 복구된 경우
                 && config.EnablePushService) // Push service 에서
             { // SessionManager 와 user 동기화
                 var client = clients.GetClient<SessionManager.SessionManagerClient>(request.SessionManagerAddress);
-                Frontend.PushService.Pusher.SyncUsersToSessionManager(client, config.BackendListeningAddress, headers);
+                Frontend.PushService.Pusher.SyncUsersToSessionManager(client, config.BackendListeningAddress, headers, logger);
             }
 
             return Task.FromResult(new Null());

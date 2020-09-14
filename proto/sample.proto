@@ -32,7 +32,8 @@ service SimpleSample {
 // Init ///////////////////////////////////////////////////////////////////////
 message StateResponse {
 	string version = 1; // service version
-	string gateway = 2;
+	string serviceStatus = 2;
+	string announcement = 3;
 }
 
 message LoginRequest {

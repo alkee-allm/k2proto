@@ -2,9 +2,9 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace K2svc
@@ -62,7 +62,7 @@ namespace K2svc
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime life, ServiceConfiguration cfg)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime life, ServiceConfiguration cfg, ILogger<Startup> logger)
         {
             if (env.IsDevelopment())
             {
@@ -74,6 +74,7 @@ namespace K2svc
             { // https://docs.microsoft.com/ko-kr/aspnet/core/fundamentals/middleware/write?view=aspnetcore-3.1#middleware-class
                 if (cfg.IsThisServerManager == false && cfg.Registered == false)
                 { // 아직 grpc 서비스를 사용가능한 상태가 아님
+                    logger.LogWarning($"not registered yet for {context.Request.Path}");
                     return;
                 }
                 await next();
