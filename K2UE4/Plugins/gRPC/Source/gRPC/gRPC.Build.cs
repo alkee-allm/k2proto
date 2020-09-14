@@ -6,22 +6,35 @@ using UnrealBuildTool;
 
 public class gRPC : ModuleRules
 {
-    private string ModulePath
-    {
-        get { return ModuleDirectory; }
-    }
+	private string ModulePath
+	{
+		get { return ModuleDirectory; }
+	}
 
-    private string ThirdPartyPath
-    {
-        get { return Path.GetFullPath(Path.Combine(ModulePath, "../ThirdParty/")); }
-    }
+	private string ThirdPartyPath
+	{
+		get { return Path.GetFullPath(Path.Combine(ModulePath, "../ThirdParty/")); }
+	}
 
 	private string GetUProjectPath
-    {
+	{
 		get { return Path.Combine(PluginDirectory, "../.."); }
-    }
+	}
 
-    public gRPC(ReadOnlyTargetRules Target) : base(Target)
+	public string GetVCPKGLibraryDirectoryName(string LibraryName)
+    {
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			string PlatformString = "x64";
+
+			return (LibraryName + "_" + PlatformString + "-windows");
+		}
+
+		return "";
+	}
+
+
+	public gRPC(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
@@ -63,6 +76,15 @@ public class gRPC : ModuleRules
 				// ... add any modules that your module loads dynamically here ...
 			}
 			);
+
+		// Generate gRPC code
+		string ProtobufToolPath = Path.Combine(ThirdPartyPath, GetVCPKGLibraryDirectoryName("protobuf"), "tools/protobuf");
+		string gRPCToolPath = Path.Combine(ThirdPartyPath, GetVCPKGLibraryDirectoryName("gRPC"), "tools/grpc");
+		string SourcePath = Path.Combine(GetUProjectPath, "../proto");
+		string TargetPath = Path.Combine(GetUProjectPath, "Source/K2UE4/proto");
+
+		string Arguments = String.Format("-I {0} --cpp_out={1} --grpc_out={1} --plugin=protoc-gen-grpc={2} {0}/sample.proto", SourcePath, TargetPath, Path.Combine(gRPCToolPath, "grpc_cpp_plugin.exe"));
+		System.Diagnostics.Process.Start(Path.Combine(ProtobufToolPath, "protoc.exe"), Arguments);
 
         PublicDefinitions.Add("GOOGLE_PROTOBUF_NO_RTTI");
         PublicDefinitions.Add("GPR_FORBID_UNREACHABLE_CODE");
