@@ -77,3 +77,6 @@ Plugins/*/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+# Ignore generated code
+Source/K2UE4/Proto/*
