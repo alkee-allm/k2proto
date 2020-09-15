@@ -44,6 +44,14 @@ namespace K2svc.Backend
         #region RPC
         public override Task<RegisterResponse> Register(RegisterRequest request, ServerCallContext context)
         {
+            if (serverManagerAddress == SERVER_NOT_EXIST && request.HasServerManager == false)
+            { // 아직 self-register 되지 않은 상황 ; ServerManager 이외 모든 연결 거부 (#53)
+                return Task.FromResult(new RegisterResponse
+                {
+                    Result = RegisterResponse.Types.ResultType.ServermanagerNotReady
+                });
+            }
+
             var server = new Server
             {
                 ServerId = request.ServerId,
