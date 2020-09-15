@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Diagnostics;
 using UnrealBuildTool;
 
 public class gRPC : ModuleRules
@@ -89,11 +90,14 @@ public class gRPC : ModuleRules
         string SaveTargetPath = Path.Combine(GetUProjectPath, "Source/K2UE4/proto");
 
         string Arguments = String.Format("-I {0} --cpp_out={1} --grpc_out={1} --plugin=protoc-gen-grpc={2} {0}/sample.proto", ProtobufSourcePath, SaveTargetPath, Path.Combine(gRPCToolPath, "grpc_cpp_plugin.exe"));
-        System.Diagnostics.Process.Start(Path.Combine(ProtobufToolPath, "protoc.exe"), Arguments);
+		Process ProtocProcess = Process.Start(Path.Combine(ProtobufToolPath, "protoc.exe"), Arguments);
+		ProtocProcess.WaitForExit();
 
         // Merge template codes to gRPC generated code
         string[] BeginTemplateCode = File.ReadAllLines(Path.Combine(SourcePath, "BeginTemplate.txt"));
         string[] EndTemplateCode = File.ReadAllLines(Path.Combine(SourcePath, "EndTemplate.txt"));
+
+		Console.WriteLine("Merging gRPC template code to generated codes...");
 
         DirectoryInfo TargetDirectoryInfo = new DirectoryInfo(SaveTargetPath);
         FileInfo[] gRPCGeneratedCodeFiles = TargetDirectoryInfo.GetFiles("*.cc");
@@ -101,16 +105,28 @@ public class gRPC : ModuleRules
         {
             string[] RawList = File.ReadAllLines(file.FullName);
 
-			System.IO.StreamWriter OutputSW = new System.IO.StreamWriter(file.FullName, false);
-			OutputSW.Write(BeginTemplateCode);
-            OutputSW.Write(RawList);
-            OutputSW.Write(EndTemplateCode);
-            OutputSW.Close();
-        }
-		Console.WriteLine("gRPC complete");
+			using (StreamWriter OutputSW = new StreamWriter(file.FullName, false))
+            {
+				foreach (string line in BeginTemplateCode)
+                {
+                    OutputSW.WriteLine(line);
+                }
 
-        // Register Third-Party libraries
-        PublicDefinitions.Add("GOOGLE_PROTOBUF_NO_RTTI");
+                foreach (string line in RawList)
+                {
+                    OutputSW.WriteLine(line);
+                }
+
+                foreach (string line in EndTemplateCode)
+                {
+                    OutputSW.WriteLine(line);
+                }
+            }
+        }
+		Console.WriteLine("Merging template complete.");
+
+		// Register Third-Party libraries
+		PublicDefinitions.Add("GOOGLE_PROTOBUF_NO_RTTI");
         PublicDefinitions.Add("GPR_FORBID_UNREACHABLE_CODE");
         PublicDefinitions.Add("GRPC_ALLOW_EXCEPTIONS=0");
         LoadVCPKGThirdPartyLibrary("protobuf", Target, true);
