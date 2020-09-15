@@ -45,7 +45,7 @@ namespace K2svc.Backend
         public override async Task<Null> Broadcast(PushRequest request, ServerCallContext context)
         {
             var count = await Frontend.PushService.Pusher.SendMessageToAll(request);
-            logger.LogInformation($"{count} broadcasted message : ", request.PushMessage);
+            logger.LogInformation($"{count} broadcasted message : {request.PushMessage}");
             return new Null();
         }
 
