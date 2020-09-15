@@ -126,6 +126,11 @@ public class gRPC : ModuleRules
 		Console.WriteLine("Merging template complete.");
 
 		// Register Third-Party libraries
+		LoadVCPKGThirdPartyLibrary("abseil", Target, true);
+		LoadVCPKGThirdPartyLibrary("c-ares", Target, true);
+		LoadVCPKGThirdPartyLibrary("upb", Target);
+		LoadVCPKGThirdPartyLibrary("winsock2", Target);
+
 		PublicDefinitions.Add("GOOGLE_PROTOBUF_NO_RTTI");
         PublicDefinitions.Add("GPR_FORBID_UNREACHABLE_CODE");
         PublicDefinitions.Add("GRPC_ALLOW_EXCEPTIONS=0");
@@ -134,16 +139,15 @@ public class gRPC : ModuleRules
 
 		PublicDefinitions.Add("WITH_GRPC_BINDING=1");
 
-        AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
-        AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
-    }
+		LoadVCPKGThirdPartyLibrary("openssl-windows", Target, true);
+		LoadVCPKGThirdPartyLibrary("zlib", Target, true);
+	}
 
     public void LoadVCPKGThirdPartyLibrary(string libraryName, ReadOnlyTargetRules Target, bool dynamic = false)
     {
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            string PlatformString = "x64";
-            string libraryDir = libraryName + "_" + PlatformString + "-windows";
+            string libraryDir = GetVCPKGLibraryDirectoryName(libraryName);
 
             string LibrariesPath = Path.Combine(ThirdPartyPath, libraryDir, "lib");
             DirectoryInfo d = new DirectoryInfo(LibrariesPath);
