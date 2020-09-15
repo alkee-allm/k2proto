@@ -19,8 +19,9 @@ namespace K2svc
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
-            // 공통 resource(singleton) ; ServiceConfiguration 이 필요한 설정은 StartUp 이전(Program.cs : CreateHostBuilder)에서.
+            // singleton resource; Config 종속적인 설정은 StartUp 이전(Program.cs : CreateHostBuilder)에
             services.AddSingleton<Net.GrpcClients>();
+            services.AddSingleton<RemoteConfig>();
 
             // database
             services.AddDbContext<Db.AccountDb>();
@@ -62,7 +63,7 @@ namespace K2svc
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime life, ServiceConfiguration cfg, ILogger<Startup> logger)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, K2Config localConfig, RemoteConfig remoteConfig, ILogger<Startup> logger)
         {
             if (env.IsDevelopment())
             {
@@ -72,7 +73,7 @@ namespace K2svc
             // service blocker
             app.Use(async (context, next) =>
             { // https://docs.microsoft.com/ko-kr/aspnet/core/fundamentals/middleware/write?view=aspnetcore-3.1#middleware-class
-                if (cfg.IsThisServerManager == false && cfg.Registered == false)
+                if (localConfig.HasServerManager == false && remoteConfig.Registered == false)
                 { // 아직 grpc 서비스를 사용가능한 상태가 아님
                     logger.LogWarning($"not registered yet for {context.Request.Path}");
                     return;
@@ -91,19 +92,19 @@ namespace K2svc
                 // TODO: reflection 으로 endpoints.MapGrpcService 을 자동화
 
                 // backend services(managers)
-                if (cfg.RemoteServerManagerAddress == null) endpoints.MapGrpcService<Backend.ServerManagerBackend>();
-                if (cfg.EnableSessionManager) { endpoints.MapGrpcService<Backend.SessionManagerBackend>(); }
+                if (localConfig.HasServerManager) endpoints.MapGrpcService<Backend.ServerManagerBackend>();
+                if (localConfig.HasSessionManager) endpoints.MapGrpcService<Backend.SessionManagerBackend>();
 
                 // hosts(backend client to backend service)
-                // backend server 의 명령(push)을 받을 backend host 들 ; disable 될 수 없다.(항상 backend server push 를 받아야 한다)
+                // backend server 의 명령(push)을 받을 backend host 들 ; disable 될 수 없다.(항상 manager 의 request 에 응답해야 한다)
                 endpoints.MapGrpcService<Backend.ServerHostBackend>();
                 endpoints.MapGrpcService<Backend.SessionHostBackend>();
 
                 // frontend services
-                if (cfg.EnableInitService) endpoints.MapGrpcService<Frontend.InitService>();
-                if (cfg.EnablePushService) endpoints.MapGrpcService<Frontend.PushService>();
-                if (cfg.EnablePushSampleService) endpoints.MapGrpcService<Frontend.PushSampleService>();
-                if (cfg.EnableSimpleSampleService) endpoints.MapGrpcService<Frontend.SimpleSampleService>();
+                if (localConfig.HasInitService ) endpoints.MapGrpcService<Frontend.InitService>();
+                if (localConfig.HasPushService) endpoints.MapGrpcService<Frontend.PushService>();
+                if (localConfig.HasPushSampleService) endpoints.MapGrpcService<Frontend.PushSampleService>();
+                if (localConfig.HasSimpleSampleService) endpoints.MapGrpcService<Frontend.SimpleSampleService>();
 
                 endpoints.MapGet("/", async context =>
                 {

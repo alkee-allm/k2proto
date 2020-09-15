@@ -12,14 +12,20 @@ namespace K2svc.Background
         : IHostedService
         , IDisposable
     {
+        public class Config
+        {
+            public double PingIntervalSec { get; set; } = 1.0;
+        }
+
         private readonly ILogger<ServerManagementBackground> logger;
-        private readonly ServiceConfiguration config;
+        private readonly K2Config localConfig;
+        private readonly RemoteConfig remoteConfig;
         private readonly Metadata header;
         private readonly Net.GrpcClients clients;
 
         private Timer timer;
         private int workCount = 0;
-        private double interval = DefaultValues.SERVER_MANAGEMENT_PING_INTERVAL_SECONDS;
+        private double interval;
 
         private enum State
         {
@@ -28,12 +34,18 @@ namespace K2svc.Background
         }
         private State currentState = State.REGISTERING;
 
-        public ServerManagementBackground(ILogger<ServerManagementBackground> _logger, ServiceConfiguration _config, Metadata _header, Net.GrpcClients _clients)
+        public ServerManagementBackground(ILogger<ServerManagementBackground> _logger,
+            K2Config _localConfig,
+            RemoteConfig _remoteConfig,
+            Metadata _header,
+            Net.GrpcClients _clients)
         {
             logger = _logger;
-            config = _config;
+            localConfig = _localConfig;
+            remoteConfig = _remoteConfig;
             header = _header;
             clients = _clients;
+            interval = localConfig.ServerManagementBackground.PingIntervalSec;
         }
 
         public void Dispose()
@@ -69,7 +81,7 @@ namespace K2svc.Background
             {
                 if (currentState == State.REGISTERING && await Register())
                 {
-                    logger.LogInformation($"server registered to ServerManager : {config.ServerManagerAddress}");
+                    logger.LogInformation($"server registered to ServerManager : {localConfig.ServerManagerAddress}");
                     currentState = State.PINGING;
                 }
                 else if (currentState == State.PINGING && await Ping())
@@ -80,25 +92,25 @@ namespace K2svc.Background
 
         private async Task<bool> Register()
         {
-            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagerAddress);
+            var client = clients.GetClient<ServerManager.ServerManagerClient>(localConfig.ServerManagerAddress);
             var req = new RegisterRequest
             {
                 Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
-                ServerId = config.ServerId,
-                ListeningPort = config.ListeningPort,
+                ServerId = localConfig.ServerId,
+                ListeningPort = localConfig.ListeningPort,
                 PublicIp = Util.GetPublicIp(), // backend 전용인 경우 null
-                ServiceScheme = config.ServiceScheme,
+                ServiceScheme = localConfig.ServiceScheme,
 
-                HasServerManager = config.RemoteServerManagerAddress == null,
+                HasServerManager = localConfig.HasServerManager,
 
                 // backend unique services
-                HasSessionManager = config.EnableSessionManager,
+                HasSessionManager = localConfig.HasSessionManager,
 
                 // frontend services
-                HasPush = config.EnablePushSampleService,
-                HasInit = config.EnableInitService,
-                HasPushSample = config.EnablePushSampleService,
-                HasSimpleSample = config.EnableSimpleSampleService,
+                HasPush = localConfig.HasPushService,
+                HasInit = localConfig.HasInitService,
+                HasPushSample = localConfig.HasPushSampleService,
+                HasSimpleSample = localConfig.HasSimpleSampleService,
             };
 
             try
@@ -106,29 +118,29 @@ namespace K2svc.Background
                 var rsp = await client.RegisterAsync(req, header);
                 if (rsp.Result == RegisterResponse.Types.ResultType.Ok)
                 {
-                    config.RemoteServerManagerAddress = rsp.ServerManagementAddress; // 시작환경에 의해 고정되기때문에 의미 없을 것.
-                    config.SessionManagerAddress = rsp.UserSessionAddress;
+                    remoteConfig.ServerManagerAddress = rsp.ServerManagementAddress;
+                    remoteConfig.SessionManagerAddress = rsp.UserSessionAddress;
 
-                    config.BackendListeningAddress = rsp.BackendListeningAddress; // Register 에 의해 private IP 가 결정되기때문에 이 이후부터 사용 가능.
-                    config.Registered = true;
+                    remoteConfig.BackendListeningAddress = rsp.BackendListeningAddress; // Register 에 의해 private IP 가 결정되기때문에 이 이후부터 사용 가능.
+                    remoteConfig.Registered = true; // remoteConfig 사용 가능 flag
                     return true;
                 }
                 logger.LogWarning($"Unable to register this server to ServerManager : {rsp.Result}");
             }
             catch (RpcException e)
             {
-                logger.LogWarning($"ERROR on register to {config.ServerManagerAddress} : {e.Status.Detail}");
+                logger.LogWarning($"ERROR on register to {localConfig.ServerManagerAddress} : {e.Status.Detail}");
             }
             return false;
         }
 
         private async Task<bool> Ping()
         {
-            var client = clients.GetClient<ServerManager.ServerManagerClient>(config.ServerManagerAddress);
+            var client = clients.GetClient<ServerManager.ServerManagerClient>(localConfig.ServerManagerAddress);
 
             var req = new PingRequest
             {
-                ServerId = config.ServerId,
+                ServerId = localConfig.ServerId,
 
                 // TODO: fill this statistics values
                 CpuUsagePercent = 0,
@@ -147,7 +159,7 @@ namespace K2svc.Background
                 }
                 logger.LogInformation("Server Manager responded NOT OK(unregistered)");
                 // set to reregister
-                config.Registered = false;
+                remoteConfig.Registered = false;
                 currentState = State.REGISTERING;
             }
             catch (RpcException e)

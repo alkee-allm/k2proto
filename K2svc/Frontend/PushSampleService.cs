@@ -9,15 +9,22 @@ namespace K2svc.Frontend
     [Authorize]
     public class PushSampleService : PushSample.PushSampleBase
     {
+        public class Config
+        {
+        }
+
         private readonly ILogger<PushSampleService> logger;
-        private readonly ServiceConfiguration config;
+        private readonly RemoteConfig remoteConfig;
         private readonly Metadata header;
         private readonly Net.GrpcClients clients;
 
-        public PushSampleService(ILogger<PushSampleService> _logger, ServiceConfiguration _config, Metadata _header, Net.GrpcClients _clients)
+        public PushSampleService(ILogger<PushSampleService> _logger,
+            RemoteConfig _remoteConfig,
+            Metadata _header,
+            Net.GrpcClients _clients)
         {
             logger = _logger;
-            config = _config;
+            remoteConfig = _remoteConfig;
             header = _header;
             clients = _clients;
         }
@@ -27,7 +34,7 @@ namespace K2svc.Frontend
         {
             // 연결된 모든 서버로 메시지를 전송하고 이 서버들에 연결된 모든 유저로 메시지를 전달하는 예시
 
-            var client = clients.GetClient<K2B.ServerManager.ServerManagerClient>(config.ServerManagerAddress);
+            var client = clients.GetClient<K2B.ServerManager.ServerManagerClient>(remoteConfig.ServerManagerAddress);
             await client.BroadcastAsync(new K2B.PushRequest
             {
                 PushMessage = new K2B.PushRequest.Types.PushResponse
@@ -48,7 +55,7 @@ namespace K2svc.Frontend
 
             // UserSessionService 를 통해 메시지 보내기
             // 전달 이후 별다른 동작이 없으므로 별도의 예외처리 하지 않음
-            var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.SessionManagerAddress);
+            var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(remoteConfig.SessionManagerAddress);
             var result = await client.PushAsync(new K2B.PushRequest
             {
                 TargetUserId = request.Target,
@@ -91,7 +98,7 @@ namespace K2svc.Frontend
         {
             // 다른 user 에게 명령을 수행하는 예시. 이 경우 연결이 끊어지도록 하는 명령 예시
 
-            var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(config.SessionManagerAddress);
+            var client = clients.GetClient<K2B.SessionManager.SessionManagerClient>(remoteConfig.SessionManagerAddress);
             var result = await client.KickUserAsync(new K2B.KickUserRequest { UserId = request.Target }, header);
             logger.LogInformation($"kick result = {result.Result}");
 

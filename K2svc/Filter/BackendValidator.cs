@@ -10,12 +10,12 @@ namespace K2svc.Filter
     public class BackendValidator : Interceptor
     {
         private readonly ILogger<BackendValidator> logger;
-        private readonly ServiceConfiguration config;
+        private readonly K2Config localConfig;
 
-        public BackendValidator(ILogger<BackendValidator> _logger, ServiceConfiguration _config)
+        public BackendValidator(ILogger<BackendValidator> _logger, K2Config _localConfig)
         {
             logger = _logger;
-            config = _config;
+            localConfig = _localConfig;
         }
 
         public override Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest request, ServerCallContext context, UnaryServerMethod<TRequest, TResponse> continuation)
@@ -24,9 +24,9 @@ namespace K2svc.Filter
                 return base.UnaryServerHandler(request, context, continuation); // not interested
 
             var backendGroupId = context.RequestHeaders.FirstOrDefault(
-                (me) => me.Key.Equals(nameof(config.BackendGroupId), StringComparison.OrdinalIgnoreCase)
+                (me) => me.Key.Equals(nameof(localConfig.BackendGroupId), StringComparison.OrdinalIgnoreCase)
                 )?.Value;
-            if (config.BackendGroupId == backendGroupId)
+            if (localConfig.BackendGroupId == backendGroupId)
                 return base.UnaryServerHandler(request, context, continuation);
 
             // unknwon server or status
