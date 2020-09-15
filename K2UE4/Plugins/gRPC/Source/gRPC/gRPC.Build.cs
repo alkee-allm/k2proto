@@ -125,25 +125,25 @@ public class gRPC : ModuleRules
         }
 		Console.WriteLine("Merging template complete.");
 
-		// Register Third-Party libraries
-		LoadVCPKGThirdPartyLibrary("abseil", Target, true);
-		LoadVCPKGThirdPartyLibrary("c-ares", Target, true);
-		LoadVCPKGThirdPartyLibrary("upb", Target);
-		LoadVCPKGThirdPartyLibrary("winsock2", Target);
+		// Add Third-Party libraries
+		AddVCPKGThirdPartyLibrary("abseil", Target, true);
+		AddVCPKGThirdPartyLibrary("c-ares", Target, true);
+		AddVCPKGThirdPartyLibrary("upb", Target);
+		AddVCPKGThirdPartyLibrary("winsock2", Target);
 
 		PublicDefinitions.Add("GOOGLE_PROTOBUF_NO_RTTI");
         PublicDefinitions.Add("GPR_FORBID_UNREACHABLE_CODE");
         PublicDefinitions.Add("GRPC_ALLOW_EXCEPTIONS=0");
-        LoadVCPKGThirdPartyLibrary("protobuf", Target, true);
-		LoadVCPKGThirdPartyLibrary("grpc", Target);
+		AddVCPKGThirdPartyLibrary("protobuf", Target, true);
+		AddVCPKGThirdPartyLibrary("grpc", Target);
 
 		PublicDefinitions.Add("WITH_GRPC_BINDING=1");
 
-		LoadVCPKGThirdPartyLibrary("openssl-windows", Target, true);
-		LoadVCPKGThirdPartyLibrary("zlib", Target, true);
+		AddVCPKGThirdPartyLibrary("openssl-windows", Target, true);
+		AddVCPKGThirdPartyLibrary("zlib", Target, true);
 	}
 
-    public void LoadVCPKGThirdPartyLibrary(string libraryName, ReadOnlyTargetRules Target, bool dynamic = false)
+    public void AddVCPKGThirdPartyLibrary(string libraryName, ReadOnlyTargetRules Target, bool dynamic = false)
     {
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
