@@ -18,7 +18,7 @@ C++ 에서 [gRPC](https://grpc.io)를 이용해 [서버](../K2svc/README.md)와 
 	K2client/proto/
 ```
 
- 4. 연결을 위한 channel 생성 및 해당 채널에 
+ 4. 연결을 위한 channel 생성 및 해당 채널에 자격(credential)옵션 부여 ; SSL 구성의 경우 [issue #49](https://github.com/alkee-allm/k2proto/issues/49) 참고
 ```cpp
 	//grpc::SslCredentialsOptions option;
 	//option.pem_root_certs = read("localhost.pem"); // 서버의 인증서 필요(certmgr 또는 dotnet dev-cert 명령 이용해 추출)
