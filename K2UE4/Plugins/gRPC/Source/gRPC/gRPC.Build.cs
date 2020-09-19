@@ -28,16 +28,26 @@ public class gRPC : ModuleRules
 		get { return Path.Combine(PluginDirectory, "../.."); }
 	}
 
-	public string GetVCPKGLibraryDirectoryName(string LibraryName)
+	public string GetVCPKGLibraryDirectoryName(string LibraryName, bool dynamic = false, bool CRT_MD = true)
     {
+		string FinalDirectoryName = LibraryName;
+
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			string PlatformString = "x64";
+			FinalDirectoryName += "_";
 
-			return (LibraryName + "_" + PlatformString + "-windows");
+			FinalDirectoryName += "x64-windows";
+			if (!dynamic)
+			{
+				FinalDirectoryName += "-static";
+			}
+			if (CRT_MD)
+			{
+				FinalDirectoryName += "-md";
+			}
 		}
 
-		return "";
+		return FinalDirectoryName;
 	}
 
 	public gRPC(ReadOnlyTargetRules Target) : base(Target)
@@ -126,28 +136,33 @@ public class gRPC : ModuleRules
 		Console.WriteLine("Merging template complete.");
 
 		// Add Third-Party libraries
-		AddVCPKGThirdPartyLibrary("abseil", Target, true);
-		AddVCPKGThirdPartyLibrary("c-ares", Target, true);
+		AddVCPKGThirdPartyLibrary("abseil", Target);
+		AddVCPKGThirdPartyLibrary("c-ares", Target);
 		AddVCPKGThirdPartyLibrary("upb", Target);
 		AddVCPKGThirdPartyLibrary("winsock2", Target);
+		AddVCPKGThirdPartyLibrary("re2", Target);
 
 		PublicDefinitions.Add("GOOGLE_PROTOBUF_NO_RTTI");
         PublicDefinitions.Add("GPR_FORBID_UNREACHABLE_CODE");
         PublicDefinitions.Add("GRPC_ALLOW_EXCEPTIONS=0");
-		AddVCPKGThirdPartyLibrary("protobuf", Target, true);
+		AddVCPKGThirdPartyLibrary("protobuf", Target);
 		AddVCPKGThirdPartyLibrary("grpc", Target);
 
 		PublicDefinitions.Add("WITH_GRPC_BINDING=1");
 
-		AddVCPKGThirdPartyLibrary("openssl-windows", Target, true);
-		AddVCPKGThirdPartyLibrary("zlib", Target, true);
+		AddVCPKGThirdPartyLibrary("openssl-windows", Target);
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+		{
+			PublicSystemLibraries.Add("crypt32.lib");
+		}
+		AddVCPKGThirdPartyLibrary("zlib", Target);
 	}
 
     public void AddVCPKGThirdPartyLibrary(string libraryName, ReadOnlyTargetRules Target, bool dynamic = false)
     {
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            string libraryDir = GetVCPKGLibraryDirectoryName(libraryName);
+            string libraryDir = GetVCPKGLibraryDirectoryName(libraryName, dynamic);
 
             string LibrariesPath = Path.Combine(ThirdPartyPath, libraryDir, "lib");
             DirectoryInfo d = new DirectoryInfo(LibrariesPath);
