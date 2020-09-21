@@ -73,9 +73,8 @@ Command parse(string line)
 class AuthCallback : public grpc::ClientContext::GlobalCallbacks
 {
 public:
-	AuthCallback(shared_ptr<grpc::ChannelCredentials> creds)
-		: creds(creds)
-	{}
+	AuthCallback() {
+	}
 
 	AuthCallback* setJwt(const string& jwt) {
 
@@ -83,8 +82,6 @@ public:
 		meta = "Bearer " + jwt;
 		return this;
 	}
-
-	shared_ptr<grpc::ChannelCredentials> getCreds() const { return creds; }
 
 	virtual void DefaultConstructor(grpc::ClientContext* context) {
 		if (meta.empty() == false)
