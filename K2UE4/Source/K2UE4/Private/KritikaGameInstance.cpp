@@ -5,34 +5,12 @@
 
 using namespace std;
 
-class AuthCallback : public grpc::ClientContext::GlobalCallbacks
+UKritikaGameInstance::UKritikaGameInstance(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+	, Channel(nullptr)
+	, PushStub(nullptr)
 {
-public:
-	AuthCallback(shared_ptr<grpc::ChannelCredentials> creds)
-		: creds(creds)
-	{}
-
-	AuthCallback* setJwt(const string& jwt) {
-
-		cout << "setting jtw : " << jwt << endl;
-		meta = "Bearer " + jwt;
-		return this;
-	}
-
-	shared_ptr<grpc::ChannelCredentials> getCreds() const { return creds; }
-
-	virtual void DefaultConstructor(grpc::ClientContext* context) {
-		if (meta.empty() == false)
-		{
-			context->AddMetadata("authorization", meta);
-		}
-	}
-	virtual void Destructor(grpc::ClientContext* context) {}
-
-private:
-	string meta;
-	shared_ptr<grpc::ChannelCredentials> creds;
-};
+}
 
 void UKritikaGameInstance::FinishDestroy()
 {
@@ -42,37 +20,52 @@ void UKritikaGameInstance::FinishDestroy()
 		PushStub = nullptr;
 	}
 
+	Auth = nullptr;
+
+	FPushResponseThread::Shutdown();
+
+	// Editor 는 Stop 버튼을 눌러 FinishDestroy()가 호출되어도 프로세스가 꺼진상태가 아니기에,
+	// client_context.cc 의 g_client_callbacks 가 기본으로 초기화 되어있지 않음.
+	// 에디터에서 테스트의 용의를 위해 FinishDestroy시 g_client_callbacks 를 default 로 재설정필요.
+	// * 아니 근데 g_default_client_callbacks 의 선언이 .cc 에 있잖아~
+	// grpc::ClientContext::SetGlobalCallbacks(grpc::ClientContext::)
+
 	Super::FinishDestroy();
 }
 
-UKritikaGameInstance::UKritikaGameInstance(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-	, Channel(nullptr)
-	, PushStub(nullptr)
-{
-}
+const std::string CHANNEL_URL("localhost:9060");
 
 bool UKritikaGameInstance::Login(const FString& id, const FString& pw)
-{
-	std::string CHANNEL_URL("localhost:9060");
-	auto creds = grpc::InsecureChannelCredentials();
-	auto initChannel = grpc::CreateChannel(CHANNEL_URL, creds);
+{	
+	if (!Creds)
+	{
+		Creds = grpc::InsecureChannelCredentials();
+	
+		if (!Auth)
+		{
+			Auth = make_shared<AuthCallback>(Creds); // jwt header 를 자동으로 붙여주는 개체
+		}
+	}
+
+	if (!Channel)
+	{
+		Channel = grpc::CreateChannel(CHANNEL_URL, Creds);
+	}
+
+	grpc::ClientContext::SetGlobalCallbacks(Auth.get());
 
 	K2::Null empty;
 
-	// grpc::ClientContext 는 재사용해 사용될 수 없음. https://github.com/grpc/grpc/issues/486
-	AuthCallback auth(creds); // jwt header 를 자동으로 붙여주는 개체
-
 	// INIT service
-	K2::Init::Stub initStub(initChannel);
+	K2::Init::Stub initStub(Channel);
 
 	{ // INIT - state
 		K2::StateResponse rsp;
 		grpc::ClientContext context;
 		auto status = initStub.State(&context, empty, &rsp);
 
-		cout << "service version  = " << rsp.version() << "\n"
-			<< "service gateway = " << rsp.gateway() << endl;
+		UE_LOG(LogTemp, Warning, TEXT("service version = %s"), *FString(UTF8_TO_TCHAR(rsp.version().c_str())));
+		UE_LOG(LogTemp, Warning, TEXT("service gateway = %s"), *FString(UTF8_TO_TCHAR(rsp.gateway().c_str())));
 	}
 	{ // INIT - login
 		K2::LoginResponse rsp;
@@ -97,25 +90,24 @@ bool UKritikaGameInstance::Login(const FString& id, const FString& pw)
 			return false;
 		}
 
-		Channel = grpc::CreateChannel(CHANNEL_URL, creds);
-		PushStub = new K2::PushSample::Stub(Channel);
-
-		grpc::ClientContext::SetGlobalCallbacks(auth.setJwt(rsp.jwt()));
+		Auth->setJwt(rsp.jwt());
 	}
+	FPushResponseThread::ThreadInit(CHANNEL_URL, Auth);
 
-	initChannel = nullptr;
+	PushStub = new K2::PushSample::Stub(Channel);
+	SimpleStub = new K2::SimpleSample::Stub(Channel);
 
 	return true;
 }
 
-void UKritikaGameInstance::HelloCommand()
+void UKritikaGameInstance::CommandHello()
 {
 	if (PushStub)
 	{
 		grpc::ClientContext Context;
 		K2::Null Empty;
-		auto status = PushStub->Hello(&Context, Empty, &Empty);
-		if (status.ok())
+		auto Status = PushStub->Hello(&Context, Empty, &Empty);
+		if (Status.ok())
 		{
 			UE_LOG(LogTemp, Log, TEXT("Success to call Hello Command"));
 		}
@@ -124,4 +116,94 @@ void UKritikaGameInstance::HelloCommand()
 			UE_LOG(LogTemp, Log, TEXT("Fail to call Hello Command"));
 		}
 	}
+}
+
+/////////////////////////////////////////////////////////
+// FPushResponseThread Implementation
+/////////////////////////////////////////////////////////
+
+FPushResponseThread* FPushResponseThread::Runnable = nullptr;
+
+FPushResponseThread::FPushResponseThread(const std::string& InChannelUrl, std::shared_ptr<AuthCallback>& InAuth)
+	: ChannelUrl(InChannelUrl)
+	, Auth(InAuth)
+{
+	Thread = FRunnableThread::Create(this, TEXT("PushResponseThread"), 0);
+}
+
+FPushResponseThread::~FPushResponseThread()
+{
+	delete Thread;
+	Thread = nullptr;
+
+	Auth = nullptr;
+}
+
+bool FPushResponseThread::Init()
+{
+	UE_LOG(LogTemp, Warning, TEXT("BEGIN OF PUSH service"));
+
+	return true;
+}
+
+uint32 FPushResponseThread::Run()
+{
+	auto Channel = grpc::CreateChannel(ChannelUrl, Auth->getCreds());
+	K2::Push::Stub PushStub(Channel);
+	grpc::ClientContext context;
+	auto Stream = PushStub.PushBegin(&context, K2::Null());
+	K2::PushResponse Buffer;
+
+	while (Stream->Read(&Buffer)) // Read 함수는 blocking 함수
+	{
+		FString Message(UTF8_TO_TCHAR(Buffer.message().c_str()));
+		if (Buffer.extra().empty() == false)
+		{
+			Message += FString::Printf(TEXT("(%s)"), UTF8_TO_TCHAR(Buffer.extra().c_str()));
+		}
+		UE_LOG(LogTemp, Warning, TEXT("[PUSH received:%s] %s"), *FString(UTF8_TO_TCHAR(Buffer.PushType_Name(Buffer.type()).c_str())), *Message);
+
+		if (Buffer.type() == K2::PushResponse_PushType_CONFIG && Buffer.message() == "jwt")
+		{
+			Auth->setJwt(Buffer.extra());
+		}
+	}
+
+	return 0;
+}
+
+void FPushResponseThread::Stop()
+{
+	UE_LOG(LogTemp, Warning, TEXT("END OF PUSH service"));
+}
+
+FPushResponseThread* FPushResponseThread::ThreadInit(const std::string& InChannelUrl, std::shared_ptr<AuthCallback>& InAuth)
+{
+	if (!Runnable && FPlatformProcess::SupportsMultithreading())
+	{
+		Runnable = new FPushResponseThread(InChannelUrl, InAuth);
+	}
+	return Runnable;
+}
+
+void FPushResponseThread::Shutdown()
+{
+	if (Runnable)
+	{
+		// Stream->Read가 blocking 함수여서 스래드가 원하는 시점에 종료가 바로 안됨.
+		// 좋은 방법은 아니지만.. 강제로 thread를 죽이자!
+		// https://docs.unrealengine.com/en-US/API/Runtime/Core/HAL/FRunnableThread/Kill/index.html
+		//Runnable->Stop();
+		//Runnable->Thread->WaitForCompletion();
+		Runnable->Thread->Kill(false);
+
+		delete Runnable;
+		Runnable = nullptr;
+	}
+}
+
+bool FPushResponseThread::IsThreadFinished()
+{
+	if (Runnable) return Runnable->IsThreadFinished();
+	return true;
 }
