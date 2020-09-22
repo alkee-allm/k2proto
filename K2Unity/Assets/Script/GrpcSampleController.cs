@@ -39,7 +39,7 @@ public class GrpcSampleController
         GrpcBegin(initClient.StateAsync(Const.K2NULL),
             (state) =>
             {
-                log.text = $"version = {state.Version}\ngateway = {state.Gateway}";
+                log.text = $"version = {state.Version}\nstatus = {state.ServiceStatus}\nannouncement = {state.Announcement}";
             }
         );
     }
