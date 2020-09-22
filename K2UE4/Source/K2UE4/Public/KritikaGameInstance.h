@@ -77,6 +77,7 @@ class FPushResponseThread : public FRunnable
 
 private:
 	FRunnableThread* Thread;
+	FThreadSafeCounter StopTaskCounter;
 
 	std::shared_ptr<grpc::Channel> AuthedChannel;
 
@@ -89,6 +90,9 @@ public:
 	virtual uint32 Run() override;
 	virtual void Stop() override;
 	// End FRunnable interface
+
+	bool IsFinished();
+
 
 	static FPushResponseThread* ThreadInit(const std::shared_ptr<grpc::Channel>& InAuthedChannel);
 	static void Shutdown();

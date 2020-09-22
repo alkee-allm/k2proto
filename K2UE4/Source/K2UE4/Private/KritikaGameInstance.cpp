@@ -145,12 +145,11 @@ FPushResponseThread::FPushResponseThread(const std::shared_ptr<grpc::Channel>& I
 
 FPushResponseThread::~FPushResponseThread()
 {
-	delete Thread;
-	Thread = nullptr;
 }
 
 bool FPushResponseThread::Init()
 {
+	StopTaskCounter.Reset();
 	UE_LOG(LogTemp, Warning, TEXT("BEGIN OF PUSH service"));
 
 	return true;
@@ -167,17 +166,17 @@ uint32 FPushResponseThread::Run()
 
 	while (Stream->Read(&Buffer)) // Read 함수는 blocking 함수
 	{
-		FString Message(UTF8_TO_TCHAR(Buffer.message().c_str()));
-		if (Buffer.extra().empty() == false)
-		{
-			Message += FString::Printf(TEXT("(%s)"), UTF8_TO_TCHAR(Buffer.extra().c_str()));
-		}
-		UE_LOG(LogTemp, Warning, TEXT("[PUSH received:%s] %s"), UTF8_TO_TCHAR(Buffer.PushType_Name(Buffer.type()).c_str()), *Message);
+		//FString Message(UTF8_TO_TCHAR(Buffer.message().c_str()));
+		//if (Buffer.extra().empty() == false)
+		//{
+		//	Message += FString::Printf(TEXT("(%s)"), UTF8_TO_TCHAR(Buffer.extra().c_str()));
+		//}
+		//UE_LOG(LogTemp, Warning, TEXT("[PUSH received:%s] %s"), UTF8_TO_TCHAR(Buffer.PushType_Name(Buffer.type()).c_str()), *Message);
 
-		if (Buffer.type() == K2::PushResponse_PushType_CONFIG && Buffer.message() == "jwt")
-		{
-			gRPCGlobalAuth.setJwt(Buffer.extra());
-		}
+		//if (Buffer.type() == K2::PushResponse_PushType_CONFIG && Buffer.message() == "jwt")
+		//{
+		//	gRPCGlobalAuth.setJwt(Buffer.extra());
+		//}
 	}
 
 	Stream->Finish();
@@ -187,7 +186,16 @@ uint32 FPushResponseThread::Run()
 
 void FPushResponseThread::Stop()
 {
+	StopTaskCounter.Increment();
 	UE_LOG(LogTemp, Warning, TEXT("END OF PUSH service"));
+}
+
+bool FPushResponseThread::IsFinished()
+{
+	if (StopTaskCounter.GetValue() > 0)
+		return true;
+
+	return false;
 }
 
 FPushResponseThread* FPushResponseThread::ThreadInit(const std::shared_ptr<grpc::Channel>& InAuthedChannel)
@@ -202,7 +210,12 @@ FPushResponseThread* FPushResponseThread::ThreadInit(const std::shared_ptr<grpc:
 
 void FPushResponseThread::Shutdown()
 {
-	if (Runnable)
+	if (Runnable == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("PushResponseRunnable is nullptr."));
+	}
+
+	if (Runnable->Thread)
 	{
 		// Stream->Read가 blocking 함수여서 스래드가 원하는 시점에 종료가 바로 안됨.
 		// 좋은 방법은 아니지만.. 강제로 thread를 죽이자!
@@ -211,13 +224,16 @@ void FPushResponseThread::Shutdown()
 		//Runnable->Thread->WaitForCompletion();
 		Runnable->Thread->Kill(false);
 
-		delete Runnable;
-		Runnable = nullptr;
+		delete Runnable->Thread;
+		Runnable->Thread = nullptr;
 	}
+
+	delete Runnable;
+	Runnable = nullptr;
 }
 
 bool FPushResponseThread::IsThreadFinished()
 {
-	if (Runnable) return Runnable->IsThreadFinished();
+	if (Runnable) return Runnable->IsFinished();
 	return true;
 }
