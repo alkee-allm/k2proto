@@ -18,8 +18,7 @@
 class AuthCallback : public grpc::ClientContext::GlobalCallbacks
 {
 public:
-	AuthCallback(std::shared_ptr<grpc::ChannelCredentials> creds)
-		: creds(creds)
+	AuthCallback()
 	{}
 
 	AuthCallback* setJwt(const std::string& jwt)
@@ -28,8 +27,6 @@ public:
 		meta = "Bearer " + jwt;
 		return this;
 	}
-
-	std::shared_ptr<grpc::ChannelCredentials> getCreds() const { return creds; }
 
 	virtual void DefaultConstructor(grpc::ClientContext* context) {
 		if (meta.empty() == false)
@@ -43,6 +40,7 @@ private:
 	std::string meta;
 	std::shared_ptr<grpc::ChannelCredentials> creds;
 };
+extern AuthCallback gRPCGlobalAuth;
 
 /**
  * 
@@ -53,6 +51,7 @@ class K2UE4_API UKritikaGameInstance : public UGameInstance
 	GENERATED_UCLASS_BODY()
 	
 public:
+	virtual void Init() override;
 	virtual void FinishDestroy() override;
 
 	UFUNCTION(BlueprintCallable)
@@ -63,8 +62,6 @@ public:
 
 private:
 	std::shared_ptr<grpc::ChannelCredentials> Creds;
-	std::shared_ptr<AuthCallback> Auth;
-
 	std::shared_ptr<grpc::Channel> Channel;
 
 	K2::PushSample::Stub* PushStub;
@@ -72,7 +69,7 @@ private:
 };
 
 /**
- * Polling 을 하여 서버와 연결을 유지시켜주는 PushThread
+ * Polling 을 하여 서버와 연결을 유지하여 서버로부터 요청을 받는 PushThread
  */
 class FPushResponseThread : public FRunnable
 {
@@ -81,11 +78,10 @@ class FPushResponseThread : public FRunnable
 private:
 	FRunnableThread* Thread;
 
-	std::string ChannelUrl;
-	std::shared_ptr<AuthCallback> Auth;
+	std::shared_ptr<grpc::Channel> AuthedChannel;
 
 public:
-	FPushResponseThread(const std::string& InChannelUrl, std::shared_ptr<AuthCallback>& InAuth);
+	FPushResponseThread(const std::shared_ptr<grpc::Channel>& InAuthedChannel);
 	virtual ~FPushResponseThread();
 
 	// Begin FRunnable interface.
@@ -94,7 +90,7 @@ public:
 	virtual void Stop() override;
 	// End FRunnable interface
 
-	static FPushResponseThread* ThreadInit(const std::string& InChannelUrl, std::shared_ptr<AuthCallback>& InAuth);
+	static FPushResponseThread* ThreadInit(const std::shared_ptr<grpc::Channel>& InAuthedChannel);
 	static void Shutdown();
 	static bool IsThreadFinished();
 };

@@ -5,11 +5,37 @@
 
 using namespace std;
 
+AuthCallback gRPCGlobalAuth;
+
 UKritikaGameInstance::UKritikaGameInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Channel(nullptr)
 	, PushStub(nullptr)
 {
+}
+
+void UKritikaGameInstance::Init()
+{
+	const std::string CHANNEL_URL("localhost:9060");
+
+	// 특별하지 않은 경우, Creds와 Channel은 한번만 call 하면 될 듯
+	if (!Creds)
+	{
+		Creds = grpc::InsecureChannelCredentials();
+	}
+
+	if (!Channel)
+	{
+		Channel = grpc::CreateChannel(CHANNEL_URL, Creds);
+	}
+
+	static bool AlreadySetted = false;
+
+	if (!AlreadySetted)
+	{
+		grpc::ClientContext::SetGlobalCallbacks(&gRPCGlobalAuth);
+		AlreadySetted = true;
+	}
 }
 
 void UKritikaGameInstance::FinishDestroy()
@@ -19,8 +45,14 @@ void UKritikaGameInstance::FinishDestroy()
 		delete PushStub;
 		PushStub = nullptr;
 	}
+	if (SimpleStub)
+	{
+		delete SimpleStub;
+		SimpleStub = nullptr;
+	}
 
-	Auth = nullptr;
+	Creds = nullptr;
+	Channel = nullptr;
 
 	FPushResponseThread::Shutdown();
 
@@ -33,27 +65,8 @@ void UKritikaGameInstance::FinishDestroy()
 	Super::FinishDestroy();
 }
 
-const std::string CHANNEL_URL("localhost:9060");
-
 bool UKritikaGameInstance::Login(const FString& id, const FString& pw)
 {	
-	if (!Creds)
-	{
-		Creds = grpc::InsecureChannelCredentials();
-	
-		if (!Auth)
-		{
-			Auth = make_shared<AuthCallback>(Creds); // jwt header 를 자동으로 붙여주는 개체
-		}
-	}
-
-	if (!Channel)
-	{
-		Channel = grpc::CreateChannel(CHANNEL_URL, Creds);
-	}
-
-	grpc::ClientContext::SetGlobalCallbacks(Auth.get());
-
 	K2::Null empty;
 
 	// INIT service
@@ -64,8 +77,8 @@ bool UKritikaGameInstance::Login(const FString& id, const FString& pw)
 		grpc::ClientContext context;
 		auto status = initStub.State(&context, empty, &rsp);
 
-		UE_LOG(LogTemp, Warning, TEXT("service version = %s"), *FString(UTF8_TO_TCHAR(rsp.version().c_str())));
-		UE_LOG(LogTemp, Warning, TEXT("service gateway = %s"), *FString(UTF8_TO_TCHAR(rsp.gateway().c_str())));
+		UE_LOG(LogTemp, Warning, TEXT("service version = %s"), UTF8_TO_TCHAR(rsp.version().c_str()));
+		UE_LOG(LogTemp, Warning, TEXT("service gateway = %s"), UTF8_TO_TCHAR(rsp.gateway().c_str()));
 	}
 	{ // INIT - login
 		K2::LoginResponse rsp;
@@ -81,7 +94,7 @@ bool UKritikaGameInstance::Login(const FString& id, const FString& pw)
 			return false;
 		}
 
-		FString Result(FString(UTF8_TO_TCHAR(K2::LoginResponse::ResultType_Name(rsp.result()).c_str())));
+		FString Result(UTF8_TO_TCHAR(K2::LoginResponse::ResultType_Name(rsp.result()).c_str()));
 		UE_LOG(LogTemp, Log, TEXT("login result = %s"), *Result);
 		
 		if (rsp.jwt().empty())
@@ -90,9 +103,9 @@ bool UKritikaGameInstance::Login(const FString& id, const FString& pw)
 			return false;
 		}
 
-		Auth->setJwt(rsp.jwt());
+		gRPCGlobalAuth.setJwt(rsp.jwt());
 	}
-	FPushResponseThread::ThreadInit(CHANNEL_URL, Auth);
+	FPushResponseThread::ThreadInit(Channel);
 
 	PushStub = new K2::PushSample::Stub(Channel);
 	SimpleStub = new K2::SimpleSample::Stub(Channel);
@@ -124,9 +137,8 @@ void UKritikaGameInstance::CommandHello()
 
 FPushResponseThread* FPushResponseThread::Runnable = nullptr;
 
-FPushResponseThread::FPushResponseThread(const std::string& InChannelUrl, std::shared_ptr<AuthCallback>& InAuth)
-	: ChannelUrl(InChannelUrl)
-	, Auth(InAuth)
+FPushResponseThread::FPushResponseThread(const std::shared_ptr<grpc::Channel>& InAuthedChannel)
+	: AuthedChannel(InAuthedChannel)
 {
 	Thread = FRunnableThread::Create(this, TEXT("PushResponseThread"), 0);
 }
@@ -135,8 +147,6 @@ FPushResponseThread::~FPushResponseThread()
 {
 	delete Thread;
 	Thread = nullptr;
-
-	Auth = nullptr;
 }
 
 bool FPushResponseThread::Init()
@@ -148,8 +158,9 @@ bool FPushResponseThread::Init()
 
 uint32 FPushResponseThread::Run()
 {
-	auto Channel = grpc::CreateChannel(ChannelUrl, Auth->getCreds());
-	K2::Push::Stub PushStub(Channel);
+	// Channels are thread safe! 그러니 안심하고 사용 가능~
+	// https://stackoverflow.com/questions/33197669/are-channel-stubs-in-grpc-thread-safe
+	K2::Push::Stub PushStub(AuthedChannel);
 	grpc::ClientContext context;
 	auto Stream = PushStub.PushBegin(&context, K2::Null());
 	K2::PushResponse Buffer;
@@ -161,13 +172,15 @@ uint32 FPushResponseThread::Run()
 		{
 			Message += FString::Printf(TEXT("(%s)"), UTF8_TO_TCHAR(Buffer.extra().c_str()));
 		}
-		UE_LOG(LogTemp, Warning, TEXT("[PUSH received:%s] %s"), *FString(UTF8_TO_TCHAR(Buffer.PushType_Name(Buffer.type()).c_str())), *Message);
+		UE_LOG(LogTemp, Warning, TEXT("[PUSH received:%s] %s"), UTF8_TO_TCHAR(Buffer.PushType_Name(Buffer.type()).c_str()), *Message);
 
 		if (Buffer.type() == K2::PushResponse_PushType_CONFIG && Buffer.message() == "jwt")
 		{
-			Auth->setJwt(Buffer.extra());
+			gRPCGlobalAuth.setJwt(Buffer.extra());
 		}
 	}
+
+	Stream->Finish();
 
 	return 0;
 }
@@ -177,12 +190,13 @@ void FPushResponseThread::Stop()
 	UE_LOG(LogTemp, Warning, TEXT("END OF PUSH service"));
 }
 
-FPushResponseThread* FPushResponseThread::ThreadInit(const std::string& InChannelUrl, std::shared_ptr<AuthCallback>& InAuth)
+FPushResponseThread* FPushResponseThread::ThreadInit(const std::shared_ptr<grpc::Channel>& InAuthedChannel)
 {
 	if (!Runnable && FPlatformProcess::SupportsMultithreading())
 	{
-		Runnable = new FPushResponseThread(InChannelUrl, InAuth);
+		Runnable = new FPushResponseThread(InAuthedChannel);
 	}
+	// TODO : Unless supported multi-threading...?
 	return Runnable;
 }
 
