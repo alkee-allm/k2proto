@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
+#include "Templates/UniquePtr.h"
+#include "HAL/Thread.h"
 
 #pragma warning (push)
 #pragma warning(disable : 4582)
@@ -14,6 +16,8 @@
 #pragma warning( pop )
 
 #include "KritikaGameInstance.generated.h"
+
+class FPushListener;
 
 class AuthCallback : public grpc::ClientContext::GlobalCallbacks
 {
@@ -64,37 +68,33 @@ private:
 	std::shared_ptr<grpc::ChannelCredentials> Creds;
 	std::shared_ptr<grpc::Channel> Channel;
 
+	TSharedPtr<FPushListener> PushThread;
+
 	K2::PushSample::Stub* PushStub;
 	K2::SimpleSample::Stub* SimpleStub;
 };
 
-/**
- * Polling 을 하여 서버와 연결을 유지하여 서버로부터 요청을 받는 PushThread
- */
-class FPushResponseThread : public FRunnable
+class FPushListener : public FRunnable
 {
-	static FPushResponseThread* Runnable;
+public:
+	FPushListener(const std::shared_ptr<grpc::Channel>& InAuthChannel);
+	~FPushListener();
+
+	virtual void Stop() override;
+
+	bool IsRunning() const;
+
+	uint32 GetThreadId() const
+	{
+		return Thread ? Thread->GetThreadID() : FThread::InvalidThreadId;
+	}
+
+protected:
+	virtual uint32 Run() override;
 
 private:
 	FRunnableThread* Thread;
-	FThreadSafeCounter StopTaskCounter;
+	FThreadSafeBool	bExitRequested;
 
-	std::shared_ptr<grpc::Channel> AuthedChannel;
-
-public:
-	FPushResponseThread(const std::shared_ptr<grpc::Channel>& InAuthedChannel);
-	virtual ~FPushResponseThread();
-
-	// Begin FRunnable interface.
-	virtual bool Init() override;
-	virtual uint32 Run() override;
-	virtual void Stop() override;
-	// End FRunnable interface
-
-	bool IsFinished();
-
-
-	static FPushResponseThread* ThreadInit(const std::shared_ptr<grpc::Channel>& InAuthedChannel);
-	static void Shutdown();
-	static bool IsThreadFinished();
+	std::shared_ptr<grpc::Channel> AuthChannel;
 };

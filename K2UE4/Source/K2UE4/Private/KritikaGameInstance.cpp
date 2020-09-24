@@ -54,14 +54,6 @@ void UKritikaGameInstance::FinishDestroy()
 	Creds = nullptr;
 	Channel = nullptr;
 
-	FPushResponseThread::Shutdown();
-
-	// Editor 는 Stop 버튼을 눌러 FinishDestroy()가 호출되어도 프로세스가 꺼진상태가 아니기에,
-	// client_context.cc 의 g_client_callbacks 가 기본으로 초기화 되어있지 않음.
-	// 에디터에서 테스트의 용의를 위해 FinishDestroy시 g_client_callbacks 를 default 로 재설정필요.
-	// * 아니 근데 g_default_client_callbacks 의 선언이 .cc 에 있잖아~
-	// grpc::ClientContext::SetGlobalCallbacks(grpc::ClientContext::)
-
 	Super::FinishDestroy();
 }
 
@@ -105,7 +97,7 @@ bool UKritikaGameInstance::Login(const FString& id, const FString& pw)
 
 		gRPCGlobalAuth.setJwt(rsp.jwt());
 	}
-	FPushResponseThread::ThreadInit(Channel);
+	PushThread = MakeShareable(new FPushListener(Channel));
 
 	PushStub = new K2::PushSample::Stub(Channel);
 	SimpleStub = new K2::SimpleSample::Stub(Channel);
@@ -131,109 +123,95 @@ void UKritikaGameInstance::CommandHello()
 	}
 }
 
-/////////////////////////////////////////////////////////
-// FPushResponseThread Implementation
-/////////////////////////////////////////////////////////
 
-FPushResponseThread* FPushResponseThread::Runnable = nullptr;
-
-FPushResponseThread::FPushResponseThread(const std::shared_ptr<grpc::Channel>& InAuthedChannel)
-	: AuthedChannel(InAuthedChannel)
+FPushListener::FPushListener(const std::shared_ptr<grpc::Channel>& InAuthChannel)
+	: AuthChannel(InAuthChannel)
+	, bExitRequested(false)
 {
-	Thread = FRunnableThread::Create(this, TEXT("PushResponseThread"), 0);
+	UE_LOG(LogTemp, Warning, TEXT("Consjasjlalkj"));
+
+	Thread = FRunnableThread::Create(this, TEXT("PushListener"));
 }
 
-FPushResponseThread::~FPushResponseThread()
+FPushListener::~FPushListener()
 {
+	if (Thread)
+	{
+		Thread->Kill();
+		delete Thread;
+		Thread = nullptr;
+	}
 }
 
-bool FPushResponseThread::Init()
+void FPushListener::Stop()
 {
-	StopTaskCounter.Reset();
+	bExitRequested = true;
+}
+
+bool FPushListener::IsRunning() const
+{
+	return !bExitRequested;
+}
+
+uint32 FPushListener::Run()
+{
 	UE_LOG(LogTemp, Warning, TEXT("BEGIN OF PUSH service"));
 
-	return true;
-}
-
-uint32 FPushResponseThread::Run()
-{
 	// Channels are thread safe! 그러니 안심하고 사용 가능~
 	// https://stackoverflow.com/questions/33197669/are-channel-stubs-in-grpc-thread-safe
-	K2::Push::Stub PushStub(AuthedChannel);
-	grpc::ClientContext context;
-	auto Stream = PushStub.PushBegin(&context, K2::Null());
+	K2::Push::Stub PushStub(AuthChannel);
+	grpc::ClientContext Context;
+	grpc::CompletionQueue cq;
+	auto AsyncStream = PushStub.PrepareAsyncPushBegin(&Context, K2::Null(), &cq);
 	K2::PushResponse Buffer;
 
-	while (Stream->Read(&Buffer)) // Read 함수는 blocking 함수
-	{
-		//FString Message(UTF8_TO_TCHAR(Buffer.message().c_str()));
-		//if (Buffer.extra().empty() == false)
-		//{
-		//	Message += FString::Printf(TEXT("(%s)"), UTF8_TO_TCHAR(Buffer.extra().c_str()));
-		//}
-		//UE_LOG(LogTemp, Warning, TEXT("[PUSH received:%s] %s"), UTF8_TO_TCHAR(Buffer.PushType_Name(Buffer.type()).c_str()), *Message);
+	AsyncStream->StartCall(reinterpret_cast<void*>(1));
+	grpc::Status Status;
+	AsyncStream->Finish(&Status, reinterpret_cast<void*>(1));
 
-		//if (Buffer.type() == K2::PushResponse_PushType_CONFIG && Buffer.message() == "jwt")
-		//{
-		//	gRPCGlobalAuth.setJwt(Buffer.extra());
-		//}
+	while (!bExitRequested)
+	{
+		void* got_tag;
+		bool ok = false;
+
+		while (true)
+		{
+			const std::chrono::milliseconds Interval(1500);
+			auto Deadline = std::chrono::system_clock::now() + Interval;
+
+			const auto NextStatus = cq.AsyncNext(&got_tag, &ok, Deadline);
+			if (NextStatus == grpc::CompletionQueue::SHUTDOWN || bExitRequested)
+			{
+				break;
+			}
+			else if (NextStatus == grpc::CompletionQueue::TIMEOUT)
+				continue;
+
+			if (!ok)
+			{
+				if (got_tag != nullptr)
+				{
+				}
+				continue;
+			}
+
+			AsyncStream->Read(&Buffer, reinterpret_cast<void*>(2));
+
+			FString Message(UTF8_TO_TCHAR(Buffer.message().c_str()));
+			if (Buffer.extra().empty() == false)
+			{
+				Message += FString::Printf(TEXT("(%s)"), UTF8_TO_TCHAR(Buffer.extra().c_str()));
+			}
+			UE_LOG(LogTemp, Warning, TEXT("{T_ID:%d}[PUSH received:%s] %s"), GetThreadId(), UTF8_TO_TCHAR(Buffer.PushType_Name(Buffer.type()).c_str()), *Message);
+
+			if (Buffer.type() == K2::PushResponse_PushType_CONFIG && Buffer.message() == "jwt")
+			{
+				gRPCGlobalAuth.setJwt(Buffer.extra());
+			}
+		}
 	}
 
-	Stream->Finish();
+	UE_LOG(LogTemp, Warning, TEXT("END OF PUSH service"));
 
 	return 0;
-}
-
-void FPushResponseThread::Stop()
-{
-	StopTaskCounter.Increment();
-	UE_LOG(LogTemp, Warning, TEXT("END OF PUSH service"));
-}
-
-bool FPushResponseThread::IsFinished()
-{
-	if (StopTaskCounter.GetValue() > 0)
-		return true;
-
-	return false;
-}
-
-FPushResponseThread* FPushResponseThread::ThreadInit(const std::shared_ptr<grpc::Channel>& InAuthedChannel)
-{
-	if (!Runnable && FPlatformProcess::SupportsMultithreading())
-	{
-		Runnable = new FPushResponseThread(InAuthedChannel);
-	}
-	// TODO : Unless supported multi-threading...?
-	return Runnable;
-}
-
-void FPushResponseThread::Shutdown()
-{
-	if (Runnable == nullptr)
-	{
-		UE_LOG(LogTemp, Error, TEXT("PushResponseRunnable is nullptr."));
-	}
-
-	if (Runnable->Thread)
-	{
-		// Stream->Read가 blocking 함수여서 스래드가 원하는 시점에 종료가 바로 안됨.
-		// 좋은 방법은 아니지만.. 강제로 thread를 죽이자!
-		// https://docs.unrealengine.com/en-US/API/Runtime/Core/HAL/FRunnableThread/Kill/index.html
-		//Runnable->Stop();
-		//Runnable->Thread->WaitForCompletion();
-		Runnable->Thread->Kill(false);
-
-		delete Runnable->Thread;
-		Runnable->Thread = nullptr;
-	}
-
-	delete Runnable;
-	Runnable = nullptr;
-}
-
-bool FPushResponseThread::IsThreadFinished()
-{
-	if (Runnable) return Runnable->IsFinished();
-	return true;
 }
