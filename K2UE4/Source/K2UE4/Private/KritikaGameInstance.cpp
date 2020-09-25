@@ -105,6 +105,30 @@ bool UKritikaGameInstance::Login(const FString& id, const FString& pw)
 	return true;
 }
 
+void UKritikaGameInstance::DumpStatus(const grpc::Status& Status)
+{
+	if (Status.ok()) return;
+
+	UE_LOG(LogTemp, Error,
+		TEXT("******************************\nFailed rpc to get state\nerror code = %d\nerror message = %s\n error detail = %s\n******************************"),
+		Status.error_code(),
+		UTF8_TO_TCHAR(Status.error_message().c_str()),
+		UTF8_TO_TCHAR(Status.error_details().c_str()));
+}
+
+void UKritikaGameInstance::CommandBroadcast(const FString& Message)
+{
+	if (PushStub)
+	{
+		K2::BroadacastRequest Req;
+		Req.set_message(TCHAR_TO_UTF8(*Message));
+		grpc::ClientContext Context;
+		K2::Null Empty;
+		auto Status = PushStub->Broadacast(&Context, Req, &Empty);
+		DumpStatus(Status);
+	}
+}
+
 void UKritikaGameInstance::CommandHello()
 {
 	if (PushStub)
@@ -112,17 +136,76 @@ void UKritikaGameInstance::CommandHello()
 		grpc::ClientContext Context;
 		K2::Null Empty;
 		auto Status = PushStub->Hello(&Context, Empty, &Empty);
-		if (Status.ok())
-		{
-			UE_LOG(LogTemp, Log, TEXT("Success to call Hello Command"));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Log, TEXT("Fail to call Hello Command"));
-		}
+		DumpStatus(Status);
 	}
 }
 
+void UKritikaGameInstance::CommandMessage(const FString& Target, const FString& Message)
+{
+	if (PushStub)
+	{
+		K2::MessageRequest Req;
+		Req.set_target(TCHAR_TO_UTF8(*Target));
+		Req.set_message(TCHAR_TO_UTF8(*Message));
+
+		grpc::ClientContext Context;
+		K2::Null Empty;
+		auto Status = PushStub->Message(&Context, Req, &Empty);
+		DumpStatus(Status);
+	}
+}
+
+void UKritikaGameInstance::CommandKick(const FString& Target)
+{
+	if (PushStub)
+	{
+		K2::KickRequest Req;
+		Req.set_target(TCHAR_TO_UTF8(*Target));
+
+		grpc::ClientContext Context;
+		K2::Null Empty;
+		auto Status = PushStub->Kick(&Context, Req, &Empty);
+		DumpStatus(Status);
+	}
+}
+
+void UKritikaGameInstance::CommandCommand(const FString& Param)
+{
+	if (SimpleStub)
+	{
+		K2::SampleCommandRequest Req;
+		Req.set_param1(TCHAR_TO_UTF8(*Param));
+
+		grpc::ClientContext Context;
+		K2::SampleCommandResponse Rsp;
+		auto Status = SimpleStub->SampleCommand(&Context, Req, &Rsp);
+		UE_LOG(LogTemp, Warning, TEXT("result = %s, value = %d"), UTF8_TO_TCHAR(Rsp.result().c_str()), Rsp.value());
+		DumpStatus(Status);
+	}
+}
+
+void UKritikaGameInstance::CommandInfo(const FString& Filter)
+{
+	if (SimpleStub)
+	{
+		K2::SampleInfoRequest Req;
+		Req.set_filter(TCHAR_TO_UTF8(*Filter));
+
+		grpc::ClientContext Context;
+		K2::SampleInfoResponse Rsp;
+		auto Status = SimpleStub->SampleInfo(&Context, Req, &Rsp);
+
+		FString Output;
+		Output += FString::Printf(TEXT("info1 = %s, info2 = ["), UTF8_TO_TCHAR(Rsp.info1().c_str()));
+		for (auto i = Rsp.info2().begin(); i != Rsp.info2().end(); ++i)
+		{
+			Output += FString::Printf(TEXT("%s, "), UTF8_TO_TCHAR(i->c_str()));
+		}
+		Output += FString::Printf(TEXT("], info3 = { type = %s, NestedValue = %s}"), UTF8_TO_TCHAR(Rsp.info3().SampleType_Name(Rsp.info3().type()).c_str()), UTF8_TO_TCHAR(Rsp.info3().nestedvalue().c_str()));
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *Output);
+		DumpStatus(Status);
+	}
+}
 
 FPushListener::FPushListener(const std::shared_ptr<grpc::Channel>& InAuthChannel)
 	: AuthChannel(InAuthChannel)

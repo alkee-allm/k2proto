@@ -61,8 +61,26 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool Login(const FString& id, const FString& pw);
 
+	
+	void DumpStatus(const grpc::Status& Status);
+
+	UFUNCTION(BlueprintCallable)
+	void CommandBroadcast(const FString& Message);
+
 	UFUNCTION(BlueprintCallable)
 	void CommandHello();
+
+	UFUNCTION(BlueprintCallable)
+	void CommandMessage(const FString& Target, const FString& Message);
+
+	UFUNCTION(BlueprintCallable)
+	void CommandKick(const FString& Target);
+
+	UFUNCTION(BlueprintCallable)
+	void CommandCommand(const FString& Param);
+
+	UFUNCTION(BlueprintCallable)
+	void CommandInfo(const FString& Filter);
 
 private:
 	std::shared_ptr<grpc::ChannelCredentials> Creds;
