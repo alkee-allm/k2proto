@@ -51,8 +51,8 @@ void UKritikaGameInstance::FinishDestroy()
 		SimpleStub = nullptr;
 	}
 
-	Creds = nullptr;
-	Channel = nullptr;
+	Creds.reset();
+	Channel.reset();
 
 	Super::FinishDestroy();
 }
@@ -166,9 +166,7 @@ uint32 FPushListener::Run()
 	K2::PushResponse Buffer;
 
 	AsyncStream->StartCall(reinterpret_cast<void*>(1));
-	grpc::Status Status;
-	AsyncStream->Finish(&Status, reinterpret_cast<void*>(1));
-
+	
 	while (!bExitRequested)
 	{
 		void* got_tag;
@@ -189,27 +187,36 @@ uint32 FPushListener::Run()
 
 			if (!ok)
 			{
-				if (got_tag != nullptr)
-				{
-				}
 				continue;
 			}
-
-			AsyncStream->Read(&Buffer, reinterpret_cast<void*>(2));
-
-			FString Message(UTF8_TO_TCHAR(Buffer.message().c_str()));
-			if (Buffer.extra().empty() == false)
+			else
 			{
-				Message += FString::Printf(TEXT("(%s)"), UTF8_TO_TCHAR(Buffer.extra().c_str()));
-			}
-			UE_LOG(LogTemp, Warning, TEXT("{T_ID:%d}[PUSH received:%s] %s"), GetThreadId(), UTF8_TO_TCHAR(Buffer.PushType_Name(Buffer.type()).c_str()), *Message);
+				if (got_tag != nullptr)
+				{
+					AsyncStream->Read(&Buffer, reinterpret_cast<void*>(2));
 
-			if (Buffer.type() == K2::PushResponse_PushType_CONFIG && Buffer.message() == "jwt")
-			{
-				gRPCGlobalAuth.setJwt(Buffer.extra());
+					FString Message(UTF8_TO_TCHAR(Buffer.message().c_str()));
+					if (Buffer.extra().empty() == false)
+					{
+						Message += FString::Printf(TEXT("(%s)"), UTF8_TO_TCHAR(Buffer.extra().c_str()));
+					}
+					UE_LOG(LogTemp, Warning, TEXT("{T_ID:%d}[PUSH received:%s] %s"), GetThreadId(), UTF8_TO_TCHAR(Buffer.PushType_Name(Buffer.type()).c_str()), *Message);
+
+					if (Buffer.type() == K2::PushResponse_PushType_CONFIG && Buffer.message() == "jwt")
+					{
+						gRPCGlobalAuth.setJwt(Buffer.extra());
+					}
+				}
 			}
 		}
 	}
+
+	Context.TryCancel();
+
+	grpc::Status Status;
+	AsyncStream->Finish(&Status, reinterpret_cast<void*>(1));
+	
+	cq.Shutdown();
 
 	UE_LOG(LogTemp, Warning, TEXT("END OF PUSH service"));
 
