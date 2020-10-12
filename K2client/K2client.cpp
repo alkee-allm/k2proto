@@ -13,7 +13,7 @@ using namespace std;
 
 
 #include "K2helper.hpp"
-void pushResponseThread(const string& channelUrl, AuthCallback& auth);
+void pushResponseThread(const string& channelUrl, AuthCallback& auth, std::shared_ptr<grpc_impl::Channel> authedChannel);
 void CommandBroadcast(K2::PushSample::Stub& stub, const string& message)
 {
 	K2::BroadacastRequest req;
@@ -116,13 +116,13 @@ int main(int argc, char** argv)
 	//option.pem_root_certs = read("localhost.pem"); // 서버의 인증서 필요(certmgr 또는 dotnet dev-cert 명령 이용해 추출)
 	//auto creds = grpc::SslCredentials(option);
 	auto creds = grpc::InsecureChannelCredentials();
-	auto initChannel = grpc::CreateChannel(CHANNEL_URL, creds);
+	auto channel = grpc::CreateChannel(CHANNEL_URL, creds);
 
 	// grpc::ClientContext 는 재사용해 사용될 수 없음. https://github.com/grpc/grpc/issues/486
-	AuthCallback auth(creds); // jwt header 를 자동으로 붙여주는 개체
+	AuthCallback auth; // jwt header 를 자동으로 붙여주는 개체
 
 	// INIT service
-	K2::Init::Stub initStub(initChannel);
+	K2::Init::Stub initStub(channel);
 
 	{ // INIT - state
 		K2::StateResponse rsp;
@@ -159,15 +159,13 @@ int main(int argc, char** argv)
 
 		grpc::ClientContext::SetGlobalCallbacks(auth.setJwt(rsp.jwt()));
 	}
-	// begin PUSH service
-	pushThread.reset(new thread(pushResponseThread, ref(CHANNEL_URL), ref(auth)));
-	initChannel = nullptr;
-
 
 	// Sample service test
-	auto channel = grpc::CreateChannel(CHANNEL_URL, creds);
 	K2::PushSample::Stub pushStub(channel);
 	K2::SimpleSample::Stub simpleStub(channel);
+
+	// begin PUSH service
+	pushThread.reset(new thread(pushResponseThread, ref(CHANNEL_URL), ref(auth), channel));
 
 	cout << "type 'quit' to terminate\n";
 	string line;
@@ -190,10 +188,9 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-void pushResponseThread(const string& channelUrl, AuthCallback& auth) {
+void pushResponseThread(const string& channelUrl, AuthCallback& auth, std::shared_ptr<grpc_impl::Channel> authedChannel) {
 
-	auto channel = grpc::CreateChannel(channelUrl, auth.getCreds());
-	K2::Push::Stub pushStub(channel);
+	K2::Push::Stub pushStub(authedChannel);
 	grpc::ClientContext context;
 	auto stream = pushStub.PushBegin(&context, K2::Null());
 	K2::PushResponse buffer;
